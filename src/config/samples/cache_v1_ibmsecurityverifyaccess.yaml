@@ -1,0 +1,7 @@
+apiVersion: cache.ibmcom/v1
+kind: IBMSecurityVerifyAccess
+metadata:
+  name: ibmsecurityverifyaccess-sample
+spec:
+  # Add fields here
+  foo: bar

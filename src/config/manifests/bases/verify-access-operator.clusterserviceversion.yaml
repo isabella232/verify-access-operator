@@ -1,0 +1,49 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: verify-access-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: IBMSecurityVerifyAccess is the Schema for the ibmsecurityverifyaccesses API
+      displayName: IBMSecurity Verify Access
+      kind: IBMSecurityVerifyAccess
+      name: ibmsecurityverifyaccesses.cache.ibmcom
+      version: v1
+  description: In a world of highly fragmented access management environments, IBM Security Verify Access helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.  The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment.
+  displayName: IBM Security Verify Access Operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: false
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: true
+    type: AllNamespaces
+  keywords:
+  - identity and access
+  - security
+  links:
+  - name: Verify Access Operator
+    url: https://verify-access-operator.domain
+  maintainers:
+  - email: isamdev@au1.ibm.com
+    name: Verify Access Development
+  maturity: alpha
+  provider:
+    name: IBM
+    url: https://www.ibm.com
+  version: 0.0.0
