@@ -74,7 +74,13 @@ jobs:
           # Install the operator-sdk.
           chmod +x operator-sdk_${OS}_${ARCH} 
 
+          mkdir -p ${HOME}/.local/bin
+
           mv operator-sdk_${OS}_${ARCH} ${HOME}/.local/bin/operator-sdk
+
+          which operator-sdk
+
+          echo $PATH
 
       # Perform the build.
       - name: Perform the build.
