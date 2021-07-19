@@ -54,18 +54,32 @@ jobs:
       - name: Set up OperatorSDK
         id: fetch-operator-sdk
         run: |
-          env
-          echo $PWD
-          ls $PWD
-          ls /
+          # Download the operator-sdk.
+          export ARCH=amd64
+          export OS=$(uname | awk '{print tolower($0)}')
+          export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v1.7.2
+
+          curl -LO ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
+
+          # Verify that the operator has been downloaded OK.
+          gpg --keyserver keyserver.ubuntu.com --recv-keys 052996E2A20B5C7E
+
+          curl -LO ${OPERATOR_SDK_DL_URL}/checksums.txt
+          curl -LO ${OPERATOR_SDK_DL_URL}/checksums.txt.asc
+          gpg -u "Operator SDK (release) <cncf-operator-sdk@cncf.io>" \
+              --verify checksums.txt.asc
+
+          grep operator-sdk_${OS}_${ARCH} checksums.txt | sha256sum -c -
+
+          # Install the operator-sdk.
+         chmod +x operator-sdk_${OS}_${ARCH} 
+
+         mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
 
       # Perform the build.
-      - name: Update type definitions
-        run: make generate
-      - name: Update CRD
-        run: make manifests
-      - name: Build code
-        run: make build
-      - name: Build bundle
-        run: make bundle
+      - name: Perform the build.
+        run: |
+          cd src
+          make build
+          make bundle
 
