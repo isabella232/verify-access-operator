@@ -85,11 +85,11 @@ jobs:
 
           if [ "`basename $GITHUB_REF`" = "master" ] ; then
             export IMAGE_TAG_BASE=ibmcom/verify-access-operator
-            export VERSION=`date +%y.%m`
           else
             export IMAGE_TAG_BASE=sec-isam-docker-local.artifactory.swg-devops.com/verify-access-operator
-            export VERSION=development
           fi
+
+          export VERSION=`date +%y.%m.0`
 
           echo "make build....."
           make build
