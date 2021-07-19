@@ -1,0 +1,46 @@
+##############################################################################
+# Copyright contributors to the IBM Security Verify Access Operator project
+
+# This workflow will be triggered whenever a push occurs on specific
+# branches (e.g. when a pull request is merged).  The action will build and
+# publish the verify access operator.  The docker images will be
+# published to docker hub for 'master' builds, and a private
+# artifactory repository for 'development' builds.
+
+name: verify-access-operator-publish
+
+# Controls when the workflow will run
+on:
+  push:
+    branches:
+      - master
+      - development
+      - build-environment
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# The jobs for the workflow.
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout
+        uses: actions/checkout@v2
+      
+      # Installs the operator-sdk into the environment.
+      - name: Setup operator-sdk Action
+        uses: shivanshs9/setup-k8s-operator-sdk@v1
+        with:
+          version: "^1.7.2"
+          
+      # Performs the build.
+      - name: Build the operator
+        run: |
+          make build
+          make bundle
