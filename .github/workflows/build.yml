@@ -74,11 +74,12 @@ jobs:
           # Install the operator-sdk.
           chmod +x operator-sdk_${OS}_${ARCH} 
 
-          mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
+          mv operator-sdk_${OS}_${ARCH} ${HOME}/operator-sdk
 
       # Perform the build.
       - name: Perform the build.
         run: |
+          echo "${HOME}" >> $GITHUB_PATH
           cd src
           make build
           make bundle
