@@ -36,8 +36,6 @@ jobs:
       # Installs the operator-sdk into the environment.
       - name: Setup operator-sdk Action
         uses: shivanshs9/setup-k8s-operator-sdk@v1
-        with:
-          version: 1.7.2
           
       # Performs the build.
       - name: Build the operator
