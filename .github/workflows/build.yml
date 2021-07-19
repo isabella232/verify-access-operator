@@ -72,9 +72,9 @@ jobs:
           grep operator-sdk_${OS}_${ARCH} checksums.txt | sha256sum -c -
 
           # Install the operator-sdk.
-         chmod +x operator-sdk_${OS}_${ARCH} 
+          chmod +x operator-sdk_${OS}_${ARCH} 
 
-         mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
+          mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
 
       # Perform the build.
       - name: Perform the build.
