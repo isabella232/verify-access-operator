@@ -51,11 +51,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      # Set up the Operator SDK
       - name: Set up OperatorSDK
-        uses: shivanshs9/setup-k8s-operator-sdk@v1
-        with:
-          version: "1.6.2"
+        id: fetch-operator-sdk
+        run: |
+          env
+          echo $PWD
+          ls $PWD
+          ls /
 
       # Perform the build.
       - name: Update type definitions
