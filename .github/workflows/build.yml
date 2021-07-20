@@ -10,10 +10,8 @@
 name: verify-access-operator-publish
 
 # Controls when the workflow will run
-on:
+on: 
   push:
-    branches:
-      - *
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
