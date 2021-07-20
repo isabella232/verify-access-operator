@@ -78,6 +78,14 @@ jobs:
           mkdir -p ${HOME}/.local/bin
           mv operator-sdk_${OS}_${ARCH} ${HOME}/.local/bin/operator-sdk
 
+      # Perform a docker login.
+      - name: Login to Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: sec-isam-docker-local.artifactory.swg-devops.com
+          username: isamdev@au1.ibm.com
+          password: ${{ secrets.ARTIFACTORY_API_KEY }}
+
       # Perform the build.
       - name: Perform the build.
         run: |
