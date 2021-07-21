@@ -11,14 +11,14 @@ metadata:
             "name": "ibmsecurityverifyaccess-sample"
           },
           "spec": {
-            "foo": "bar"
+            "size": 1
           }
         }
       ]
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.7.1+git
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v3
-  name: verify-access-operator.v0.0.1
+  name: verify-access-operator.v0.0.0
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -38,6 +38,18 @@ spec:
     spec:
       clusterPermissions:
       - rules:
+        - apiGroups:
+          - apps
+          resources:
+          - deployments
+          verbs:
+          - create
+          - delete
+          - get
+          - list
+          - patch
+          - update
+          - watch
         - apiGroups:
           - cache.ibmcom
           resources:
@@ -64,6 +76,14 @@ spec:
           - get
           - patch
           - update
+        - apiGroups:
+          - ""
+          resources:
+          - pods
+          verbs:
+          - get
+          - list
+          - watch
         - apiGroups:
           - authentication.k8s.io
           resources:
@@ -108,7 +128,7 @@ spec:
                 - --leader-elect
                 command:
                 - /manager
-                image: controller:latest
+                image: sec-isam-docker-local.artifactory.swg-devops.com/verify-access-operator:0.0.0
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -192,4 +212,4 @@ spec:
   provider:
     name: IBM
     url: https://www.ibm.com
-  version: 0.0.1
+  version: 0.0.0

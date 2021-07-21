@@ -38,14 +38,25 @@ spec:
             description: IBMSecurityVerifyAccessSpec defines the desired state of
               IBMSecurityVerifyAccess
             properties:
-              foo:
-                description: Foo is an example field of IBMSecurityVerifyAccess. Edit
-                  ibmsecurityverifyaccess_types.go to remove/update
-                type: string
+              size:
+                description: Size is the size of the memcached deployment
+                format: int32
+                minimum: 0
+                type: integer
+            required:
+            - size
             type: object
           status:
             description: IBMSecurityVerifyAccessStatus defines the observed state
               of IBMSecurityVerifyAccess
+            properties:
+              nodes:
+                description: Nodes are the names of the memcached pods
+                items:
+                  type: string
+                type: array
+            required:
+            - nodes
             type: object
         type: object
     served: true

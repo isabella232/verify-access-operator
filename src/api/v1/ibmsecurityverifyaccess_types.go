@@ -25,23 +25,22 @@ import (
 
 // IBMSecurityVerifyAccessSpec defines the desired state of IBMSecurityVerifyAccess
 type IBMSecurityVerifyAccessSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of IBMSecurityVerifyAccess. Edit ibmsecurityverifyaccess_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	//+kubebuilder:validation:Minimum=0
+	// Size is the size of the memcached deployment
+	Size int32 `json:"size"`
 }
 
 // IBMSecurityVerifyAccessStatus defines the observed state of IBMSecurityVerifyAccess
 type IBMSecurityVerifyAccessStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	// Nodes are the names of the memcached pods
+	Nodes []string `json:"nodes"`
 }
 
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
 // IBMSecurityVerifyAccess is the Schema for the ibmsecurityverifyaccesses API
+//+kubebuilder:subresource:status
 type IBMSecurityVerifyAccess struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
