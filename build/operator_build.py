@@ -136,7 +136,7 @@ def create_command(args):
 
     # Add in our source path.
     cmd.append("--volume")
-    cmd.append("{0}:/build".format(source))
+    cmd.append("{0}:/workspace".format(source))
 
     # Create a temporary file system to help speed up the build.
     cmd.append("--tmpfs")

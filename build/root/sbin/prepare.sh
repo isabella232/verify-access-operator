@@ -10,7 +10,7 @@ set -e
 # Install the pre-requisite RedHat RPMs
 #
 
-yum -y install make git 
+yum -y install make git rsync
 
 yum module -y install go-toolset
 
@@ -29,6 +29,8 @@ gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cl
 EOF
 
 yum install -y kubectl
+
+mkdir -p /root/.kube
 
 #
 # Install docker.
@@ -77,7 +79,15 @@ mv operator-sdk_${OS}_${ARCH} /usr/local/bin/operator-sdk
 #
 
 cat > /etc/motd << EOF
-This shell can be used to build the Verify Access Operator docker images.
+This shell can be used to build the Verify Access Operator docker images.  The
+build directory is a local directory within the container, and the source files
+are rsynced from the workspace directory (/workspace/src).  If you want to
+manually rsync the source code you can issue the 'resync' command, otherwise
+the source code will be automatically sync'ed as a part of the 'make' command.
+
+In order to be able to publish from the build container you will need to:
+   1. Copy the ~/.kube/config file to /root/.kube/config
+   2. Perform a docker login to sec-isam-docker-local.artifactory.swg-devops.com
 
 The following make targets can be used:
 
@@ -99,7 +109,11 @@ The following make targets can be used:
 
 In order to deploy the image, using OLM, to a Kubernetes environment:
     1. operator-sdk olm install
-    2. operator-sdk run bundle ibmcom/verify-access-operator-bundle:v0.0.1
+    2. operator-sdk run bundle sec-isam-docker-local.artifactory.swg-devops.com/verify-access-operator-bundle:0.0.0 --pull-secret-name artifactory-login
+
+In order to cleanup the Kubernetes environment:
+    1. operator-sdk cleanup verify-access-operator
+    2. operator-sdk olm uninstall
 
 EOF
 
@@ -108,7 +122,22 @@ help() {
     cat /etc/motd
 }
 
+resync() {
+    rsync -az /workspace/src /build
+}
+
+make() {
+    echo "Resyncing the source code...."
+    resync
+
+    echo "Performing the make.... "
+    /usr/bin/make \$*
+}
+
 help
+
+export VERSION=0.0.0
+export IMAGE_TAG_BASE=sec-isam-docker-local.artifactory.swg-devops.com/verify-access-operator
 
 EOF
 
