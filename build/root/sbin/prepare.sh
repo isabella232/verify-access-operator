@@ -10,7 +10,7 @@ set -e
 # Install the pre-requisite RedHat RPMs
 #
 
-yum -y install make git rsync
+yum -y install make git rsync zip
 
 yum module -y install go-toolset
 
