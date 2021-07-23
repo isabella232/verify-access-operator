@@ -32,7 +32,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	cachev1 "github.com/ibm-security/verify-access-operator/api/v1"
+	ibmv1 "github.com/ibm-security/verify-access-operator/api/v1"
 )
 
 // IBMSecurityVerifyAccessReconciler reconciles a IBMSecurityVerifyAccess object
@@ -42,9 +42,9 @@ type IBMSecurityVerifyAccessReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups=cache.ibmcom,resources=ibmsecurityverifyaccesses,verbs=get;list;watch;create;update;patch;delete
-//+kubebuilder:rbac:groups=cache.ibmcom,resources=ibmsecurityverifyaccesses/status,verbs=get;update;patch
-//+kubebuilder:rbac:groups=cache.ibmcom,resources=ibmsecurityverifyaccesses/finalizers,verbs=update
+//+kubebuilder:rbac:groups=ibm.com,resources=ibmsecurityverifyaccesses,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups=ibm.com,resources=ibmsecurityverifyaccesses/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=ibm.com,resources=ibmsecurityverifyaccesses/finalizers,verbs=update
 //+kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch
 
@@ -61,7 +61,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(ctx context.Context, req c
 	_ = r.Log.WithValues("ibmsecurityverifyaccess", req.NamespacedName)
 
 	// Fetch the instance
-	verifyaccess := &cachev1.IBMSecurityVerifyAccess{}
+	verifyaccess := &ibmv1.IBMSecurityVerifyAccess{}
 	err := r.Get(ctx, req.NamespacedName, verifyaccess)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -137,7 +137,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(ctx context.Context, req c
 }
 
 // deploymentForVerifyAccess returns a VerifyAccess Deployment object
-func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(m *cachev1.IBMSecurityVerifyAccess) *appsv1.Deployment {
+func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(m *ibmv1.IBMSecurityVerifyAccess) *appsv1.Deployment {
 	ls := labelsForVerifyAccess(m.Name)
 	replicas := m.Spec.Size
 
@@ -192,7 +192,7 @@ func getPodNames(pods []corev1.Pod) []string {
 // SetupWithManager sets up the controller with the Manager.
 func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cachev1.IBMSecurityVerifyAccess{}).
+		For(&ibmv1.IBMSecurityVerifyAccess{}).
 		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }

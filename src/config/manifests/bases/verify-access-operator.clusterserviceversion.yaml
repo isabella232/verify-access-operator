@@ -13,7 +13,7 @@ spec:
     - description: IBMSecurityVerifyAccess is the Schema for the ibmsecurityverifyaccesses API
       displayName: IBMSecurity Verify Access
       kind: IBMSecurityVerifyAccess
-      name: ibmsecurityverifyaccesses.cache.ibmcom
+      name: ibmsecurityverifyaccesses.ibm.com
       version: v1
   description: In a world of highly fragmented access management environments, IBM Security Verify Access helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.  The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment.
   displayName: IBM Security Verify Access Operator

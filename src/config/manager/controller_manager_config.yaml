@@ -8,4 +8,4 @@ webhook:
   port: 9443
 leaderElection:
   leaderElect: true
-  resourceName: 0941aff7.ibmcom
+  resourceName: 0941aff7.ibm.com

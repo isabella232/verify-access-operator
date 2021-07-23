@@ -1,4 +1,4 @@
-apiVersion: cache.ibmcom/v1
+apiVersion: ibm.com/v1
 kind: IBMSecurityVerifyAccess
 metadata:
   name: ibmsecurityverifyaccess-sample

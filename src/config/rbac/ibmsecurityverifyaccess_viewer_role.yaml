@@ -5,7 +5,7 @@ metadata:
   name: ibmsecurityverifyaccess-viewer-role
 rules:
 - apiGroups:
-  - cache.ibmcom
+  - ibm.com
   resources:
   - ibmsecurityverifyaccesses
   verbs:
@@ -13,7 +13,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - cache.ibmcom
+  - ibm.com
   resources:
   - ibmsecurityverifyaccesses/status
   verbs:

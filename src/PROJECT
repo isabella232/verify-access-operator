@@ -11,8 +11,8 @@ resources:
     crdVersion: v1
     namespaced: true
   controller: true
-  domain: ibmcom
-  group: cache
+  domain: com
+  group: ibm
   kind: IBMSecurityVerifyAccess
   path: github.com/ibm-security/verify-access-operator/api/v1
   version: v1

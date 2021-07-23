@@ -31,7 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	cachev1 "github.com/ibm-security/verify-access-operator/api/v1"
+	ibmv1 "github.com/ibm-security/verify-access-operator/api/v1"
 	"github.com/ibm-security/verify-access-operator/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -44,7 +44,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(cachev1.AddToScheme(scheme))
+	utilruntime.Must(ibmv1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -71,7 +71,7 @@ func main() {
 		Port:                   9443,
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
-		LeaderElectionID:       "0941aff7.ibmcom",
+		LeaderElectionID:       "0941aff7.ibm.com",
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
