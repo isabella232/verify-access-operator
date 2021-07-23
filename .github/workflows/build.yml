@@ -108,10 +108,7 @@ jobs:
               ;;
             *)
               export IMAGE_TAG_BASE=${ARTIFACTORY_SERVER}/verify-access-operator
-
-              # Work out the version.  The operator bundle has some pretty 
-              # severe restrictions on the version number.
-              export VERSION=`date +%y.%m.0 | sed "s|\.0\([0-9]\)|.\1|g"`
+              export VERSION=0.0.0
               ;;
           esac
 
