@@ -1,11 +1,14 @@
 ##############################################################################
 # Copyright contributors to the IBM Security Verify Access Operator project
 
-# This workflow will be triggered whenever a push occurs on specific
-# branches (e.g. when a pull request is merged).  The action will build and
-# publish the verify access operator.  The docker images will be
-# published to docker hub for 'master' builds, and a private
-# artifactory repository for 'development' builds.
+# This workflow will be triggered whenever a push occurs (e.g. when a pull 
+# request is merged).  The action will build and publish the verify access 
+# operator.  The docker images will be published to docker hub for release
+# builds, and a private artifactory repository for other builds.  A release
+# build is created whenever a new tag is created.  The name of the tag should
+# be of the format v<year>.<month>.<fix> (with no leading 0's), for example:
+# v21.7.0.  The tag is also used as the tag for the generated docker image, 
+# without the leading 'v'.
 
 name: verify-access-operator-publish
 
