@@ -128,24 +128,14 @@ jobs:
 
           echo "make bundle-zip....."
           make bundle-zip
-
-          echo "ls...."
-          ls 
-
-          echo "ls bundle.zip...."
-          ls bundle.zip
-
-          echo "pwd"
-          pwd
+          cp bundle.zip ../
 
       # Publish the release, if the release has been tagged.
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            *.zip
-            bundle.zip
+          files: bundle.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
