@@ -1,0 +1,7 @@
+apiVersion: ibm.com/v1
+kind: IBMSecurityVerifyAccess
+metadata:
+  name: ibmsecurityverifyaccess-sample
+spec:
+  # Add fields here
+  size: 1
