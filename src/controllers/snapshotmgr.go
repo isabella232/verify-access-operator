@@ -17,12 +17,15 @@ import (
     "crypto/x509"
     "crypto/x509/pkix"
     "fmt"
+    "io"
     "io/ioutil"
     "math/big"
     "net"
     "net/http"
     "os"
     "os/signal"
+    "path/filepath"
+    "strings"
     "syscall"
     "time"
 
@@ -55,7 +58,7 @@ var k8sNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
  * The name of the secret which contains our credential information.
  */
 
-var secretName = "verify-access-operator"
+var operatorName = "verify-access-operator"
 
 /*
  * The name of the various fields in the secret.
@@ -85,6 +88,19 @@ var keyLength = 2048;
 
 var httpsPort = 7443
 
+/*
+ * The directory on the file system which holds our uploaded files.
+ */
+
+var dataRoot = "/data"
+
+/*
+ * The maximum amount of memory which should be used when receiving a 
+ * file.
+ */
+
+var maxMemory = int64(1024)
+
 /*****************************************************************************/
 
 type SnapshotMgr struct {
@@ -105,7 +121,167 @@ type SnapshotMgr struct {
  */
 
 func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hi there, I love %s!", r.URL.Path[1:])
+    /*
+     * Check the authorization to this Web server.  The username should always
+     * be the same, but we use a different password for the GET/POST methods.
+     */
+
+    username, password, _ := r.BasicAuth()
+
+    authOk := mgr.creds[userFieldName] == username &&
+                (mgr.creds[rwPwdFieldName] == password ||
+                  (r.Method == "GET" && mgr.creds[roPwdFieldName] == password))
+
+    if !authOk {
+        w.Header().Set("WWW-Authenticate",
+                        fmt.Sprintf("Basic realm=\"%s\"", operatorName))
+
+        http.Error(w,
+            http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
+        return
+    }
+
+    /*
+     * Validate the supplied path, and from this determine the name of the
+     * file which will be used.  We need to ensure that we don't traverse
+     * out of our data path.  The only valid directories are: '/fixpacks',
+     * and '/snapshots'.
+     */
+
+    isValid := false
+
+    if (strings.HasPrefix(r.URL.Path, "/fixpacks/")) {
+        basePath := filepath.Base(filepath.Clean(r.URL.Path))
+
+        if r.URL.Path == "/fixpacks/" + basePath {
+            isValid = true
+        }
+    } else if (strings.HasPrefix(r.URL.Path, "/snapshots/")) {
+        basePath := filepath.Base(filepath.Clean(r.URL.Path))
+
+        if r.URL.Path == "/snapshots/" + basePath &&
+                strings.HasPrefix(basePath, "isva_") &&
+                strings.HasSuffix(basePath, ".snapshot") {
+            isValid = true
+        }
+    }
+
+    if !isValid {
+        http.Error(w,
+            http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+
+        return
+    }
+
+    fileName := filepath.Join(dataRoot, r.URL.Path)
+
+    /*
+     * Process the request based on the specified method.
+     */
+
+    switch r.Method {
+        /*
+         * For a GET we simply want to return the file.  The ServeFile function
+         * will take care of constructing the response.
+         */
+
+        case "GET":
+            http.ServeFile(w, r, fileName)
+
+        /*
+         * For a POST we want to save the supplied file.
+         */
+
+        case "POST":
+            /*
+             * Retrieve the file parameter from the form.
+             */
+
+            r.ParseMultipartForm(maxMemory)
+
+            file, _, err := r.FormFile("file")
+
+            if err != nil {
+                http.Error(w,
+                    http.StatusText(http.StatusBadRequest),
+                    http.StatusBadRequest)
+
+                return
+            }
+
+            defer file.Close()
+
+            /*
+             * Create the file which is to be uploaded.
+             */
+
+            dst, err := os.Create(fileName)
+
+            if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		return
+            }
+
+            defer dst.Close()
+
+            /*
+             * Save the file.
+             */
+
+            _, err = io.Copy(dst, file)
+
+            if err != nil {
+                http.Error(w, err.Error(), http.StatusInternalServerError)
+                return
+            }
+
+            /*
+             * XXX: request a restart of all running containers.... this should
+             *      be done in a separate thread.
+             */
+
+            /*
+             *  Return a '201 Created' response.
+             */
+
+            http.Error(w, "", http.StatusCreated)
+
+        /*
+         * For a DELETE we want to attempt to delete the specified file.  The
+         * response will be different based on whether the file exists, and we
+         * were able to successfully delete the file.
+         */
+
+        case "DELETE":
+            err := os.Remove(fileName)
+
+            var rspCode int
+            var rspText string
+
+            if err == nil {
+                rspCode = http.StatusNoContent
+                rspText = ""
+            } else if os.IsNotExist(err) {
+                rspCode = http.StatusNotFound
+                rspText = http.StatusText(http.StatusNotFound)
+            } else {
+                rspCode = http.StatusInternalServerError
+                rspText = err.Error()
+            }
+
+            http.Error(w, rspText, rspCode)
+
+        /*
+         * All other methods are not supported.
+         */
+
+	default:
+            http.Error(w,
+                http.StatusText(http.StatusNotImplemented),
+                http.StatusNotImplemented)
+    }
 }
 
 /*****************************************************************************/
@@ -309,7 +485,7 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
     secret = &apiV1.Secret{
         Type: apiV1.SecretTypeOpaque,
         ObjectMeta: metaV1.ObjectMeta {
-            Name: secretName,
+            Name: operatorName,
         },
         StringData: map[string]string{
             userFieldName:  "apikey",
@@ -351,7 +527,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
 
     secretsClient = mgr.clientset.CoreV1().Secrets(mgr.namespace)
     secret, err   = secretsClient.Get(
-                    context.TODO(), secretName, metaV1.GetOptions{})
+                    context.TODO(), operatorName, metaV1.GetOptions{})
 
     if err != nil {
         /*
@@ -387,7 +563,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
         if !ok {
             mgr.log.Error(err, fmt.Sprintf(
                     "The secret, %s, is missing a required field: '%s'!",
-                    secretName, key))
+                    operatorName, key))
 
             err = errors.New("Missing field")
 
@@ -425,6 +601,26 @@ func (mgr *SnapshotMgr) start() {
     err = mgr.loadSecret()
     if err != nil {
         return
+    }
+
+    /*
+     * Create the directories which will store our data.
+     */
+
+    dirs := []string {
+                    dataRoot,
+                    filepath.Join(dataRoot, "snapshots"),
+                    filepath.Join(dataRoot, "fixpacks"),
+        }
+
+    for _, dir := range dirs {
+        err = os.Mkdir(dir, 0700)
+
+        if err != nil && !os.IsExist(err) {
+            mgr.log.Error(err,
+                    fmt.Sprintf("Failed to create the data directory: %s", dir))
+            return
+        }
     }
 
     /*

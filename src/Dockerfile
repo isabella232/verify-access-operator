@@ -9,6 +9,9 @@ COPY go.sum go.sum
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
 
+# Create the data directory.
+RUN mkdir /data && mkdir /data/snapshots && mkdir /data/fixpacks
+
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
@@ -23,5 +26,7 @@ FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
 USER 65532:65532
+
+COPY --chown=65532:65532 --from=builder /data /data
 
 ENTRYPOINT ["/manager"]
