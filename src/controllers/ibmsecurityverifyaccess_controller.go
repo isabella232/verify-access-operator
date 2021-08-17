@@ -29,6 +29,14 @@ import (
 /*****************************************************************************/
 
 /*
+ * Global variables.
+ */
+
+var appName = "IBMSecurityVerifyAccess"
+
+/*****************************************************************************/
+
+/*
  * The IBMSecurityVerifyAccessReconciler structure reconciles an 
  * IBMSecurityVerifyAccess object.
  */
@@ -184,6 +192,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
         ObjectMeta: metav1.ObjectMeta{
             Name:      m.Name,
             Namespace: m.Namespace,
+            Labels:    ls,
         },
         Spec: appsv1.DeploymentSpec{
             Replicas: &replicas,
@@ -223,7 +232,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
  */
 
 func labelsForVerifyAccess(name string) map[string]string {
-    return map[string]string{"app": "VerifyAccess", "VerifyAccess_cr": name}
+    return map[string]string{"app": appName, "VerifyAccess_cr": name}
 }
 
 /*****************************************************************************/
@@ -267,8 +276,9 @@ func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(mgr ctrl.Manager) e
 func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
     // Setup the snapshot manager.
     (&SnapshotMgr{
-        config: mgr.GetConfig(),
-        log:    r.Log.WithValues("SnapshotMgr", "Server"),
+        config:  mgr.GetConfig(),
+        log:     r.Log.WithValues("SnapshotMgr", "Server"),
+        appName: appName,
     }).start()
 }
 
