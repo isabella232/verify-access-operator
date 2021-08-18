@@ -13,7 +13,7 @@ import (
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/types"
 
-    "reflect"
+//    "reflect"
     "time"
     "context"
 
@@ -25,6 +25,14 @@ import (
 
     ibmv1 "github.com/ibm-security/verify-access-operator/api/v1"
 )
+
+/*****************************************************************************/
+
+/*
+ * Global variables.
+ */
+
+var appName = "IBMSecurityVerifyAccess"
 
 /*****************************************************************************/
 
@@ -134,6 +142,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
         return ctrl.Result{RequeueAfter: time.Minute}, nil
     }
 
+/*
     // Update the VerifyAccess status with the pod names and list the pods for 
     // this verifyaccess's deployment
 
@@ -165,6 +174,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
             return ctrl.Result{}, err
         }
     }
+ */
 
     return ctrl.Result{}, nil
 }
@@ -184,6 +194,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
         ObjectMeta: metav1.ObjectMeta{
             Name:      m.Name,
             Namespace: m.Namespace,
+            Labels:    ls,
         },
         Spec: appsv1.DeploymentSpec{
             Replicas: &replicas,
@@ -223,7 +234,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
  */
 
 func labelsForVerifyAccess(name string) map[string]string {
-    return map[string]string{"app": "VerifyAccess", "VerifyAccess_cr": name}
+    return map[string]string{"app": appName, "VerifyAccess_cr": name}
 }
 
 /*****************************************************************************/
@@ -267,8 +278,10 @@ func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(mgr ctrl.Manager) e
 func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
     // Setup the snapshot manager.
     (&SnapshotMgr{
-        config: mgr.GetConfig(),
-        log:    r.Log.WithValues("SnapshotMgr", "Server"),
+        config:  mgr.GetConfig(),
+        scheme:  mgr.GetScheme(),
+        log:     r.Log.WithValues("SnapshotMgr", "Server"),
+        appName: appName,
     }).start()
 }
 

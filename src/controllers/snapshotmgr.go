@@ -25,20 +25,29 @@ import (
     "os"
     "os/signal"
     "path/filepath"
+    "strconv"
     "strings"
+    "sync"
     "syscall"
     "time"
 
     "github.com/go-logr/logr"
 
+    "sigs.k8s.io/controller-runtime/pkg/client"
+
+    "k8s.io/apimachinery/pkg/runtime"
+    "k8s.io/apimachinery/pkg/types"
     "k8s.io/client-go/rest"
     "k8s.io/client-go/kubernetes"
     "k8s.io/client-go/tools/clientcmd"
     "k8s.io/client-go/tools/clientcmd/api"
 
-    apiV1  "k8s.io/api/core/v1"
-    coreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
-    metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+    apiV1   "k8s.io/api/core/v1"
+    appsV1  "k8s.io/client-go/kubernetes/typed/apps/v1"
+    coreV1  "k8s.io/client-go/kubernetes/typed/core/v1"
+    metaV1  "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+    ibmv1 "github.com/ibm-security/verify-access-operator/api/v1"
 )
 
 /*****************************************************************************/
@@ -105,12 +114,170 @@ var maxMemory = int64(1024)
 
 type SnapshotMgr struct {
     config    *rest.Config
+    scheme    *runtime.Scheme
+
     log       logr.Logger
+    appName   string
 
     server    *http.Server
-    clientset *kubernetes.Clientset
-    namespace string
     creds     map[string]string
+
+    mutex     *sync.Mutex
+}
+
+/*****************************************************************************/
+
+/*
+ * This function is used to trigger a rolling restart of our deployments.  This
+ * will occur whenever a new snapshot is uploaded.
+ */
+
+func (mgr *SnapshotMgr) rollingRestart() {
+    /*
+     * Grab a lock to ensure that we don't process multiple simultaneous
+     * restarts.
+     */
+
+    mgr.mutex.Lock()
+
+    /*
+     * Create a new client based on our configuration.
+     */
+
+    appsV1Client, err := appsV1.NewForConfig(mgr.config)
+    if err != nil {
+        mgr.log.Error(err, "Failed to create a new K8S Application client")
+
+        mgr.mutex.Unlock()
+
+        return
+    }
+
+    rtClient, err := client.New(mgr.config,
+                                client.Options{
+                                    Scheme: mgr.scheme,
+                                })
+
+    if err != nil {
+        mgr.log.Error(err, "Failed to create a new controller runtime client")
+
+        mgr.mutex.Unlock()
+
+        return
+    }
+
+    /*
+     * Retrieve the existing deployments for our operator.
+     */
+
+    deployments, err := appsV1Client.Deployments("").List(
+                    context.TODO(),
+                    metaV1.ListOptions{
+                        LabelSelector: fmt.Sprintf("app=%s", mgr.appName),
+                    })
+    if err != nil {
+        mgr.log.Error(err, "Failed to list deployments")
+
+        mgr.mutex.Unlock()
+
+        return
+    }
+
+    /*
+     * Now we need to iterate over each of the deployments, performing
+     * a rolling restart of the deployment.
+     */
+
+    for _, deployment := range deployments.Items {
+
+        /*
+         * Detect and retrieve the custom resource for this deployment.  The 
+         * name of the custom resource is contained in the VerifyAccess_cr 
+         * label.
+         */
+
+        crName := deployment.Labels["VerifyAccess_cr"]
+
+        if len(crName) == 0 {
+            mgr.log.Info(fmt.Sprintf(
+                "The deployment, %s, does not have a VerifyAccess_cr label",
+                deployment.Name))
+            continue
+        }
+
+        verifyaccess := &ibmv1.IBMSecurityVerifyAccess{}
+
+        err = rtClient.Get(context.TODO(),
+                            client.ObjectKey{
+                                Namespace: deployment.Namespace,
+                                Name:      crName,
+                            },
+                            verifyaccess)
+
+        if err != nil {
+            mgr.log.Error(err, fmt.Sprintf(
+                "Failed to retrieve the IBMSecurityVerifyAccess resource: %s",
+                crName))
+            continue
+        }
+
+        /*
+         * We don't bother to restart the deployment if the AutoRestart field
+         * has been set to false.
+         */
+
+        if !verifyaccess.Spec.AutoRestart {
+            continue
+        }
+
+        /*
+         * Determine the revision number of the deployment.  This is incremented
+         * to trigger a rolling update.
+         */
+
+        revision, err := strconv.Atoi(
+                            deployment.Spec.Template.Annotations["revision"])
+
+        if err != nil {
+            revision = 1
+        } else {
+            revision++
+        }
+
+        /*
+         * Patch the deployment descriptor with the incremented revision
+         * number.
+         */
+
+	payloadBytes := fmt.Sprintf(
+                    "{\"spec\":" +
+                      "{\"template\":" +
+                        "{\"metadata\":" +
+                          "{\"annotations\":{" +
+                            "\"revision\":\"%d\"}" +
+                          "}" +
+                        "}" +
+                      "}" +
+                    "}", revision)
+
+        _, err = appsV1Client.Deployments(deployment.Namespace).Patch(
+                        context.TODO(),
+                        deployment.Name,
+                        types.StrategicMergePatchType,
+                        []byte(payloadBytes),
+                        metaV1.PatchOptions{})
+
+        if err != nil {
+            mgr.log.Error(err, fmt.Sprintf(
+                    "Failed to update the deployment: %s", deployment.Name))
+
+            mgr.mutex.Unlock()
+
+            return
+        }
+    }
+
+    mgr.mutex.Unlock()
 }
 
 /*****************************************************************************/
@@ -238,9 +405,11 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
             }
 
             /*
-             * XXX: request a restart of all running containers.... this should
-             *      be done in a separate thread.
+             * Request a restart of all running containers in a separate
+             * thread.
              */
+
+            go mgr.rollingRestart()
 
             /*
              *  Return a '201 Created' response.
@@ -287,11 +456,11 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 /*****************************************************************************/
 
 /*
- * This function is used to initialise the client which is used interact with
- * the kubernetes API.
+ * This function is used to determine the namespace in which the current
+ * pod is running.
  */
 
-func (mgr *SnapshotMgr) initialiseClientset() (err error) {
+func (mgr *SnapshotMgr) getNamespace() (namespace string, err error) {
     var namespaceBytes []byte
     var clientCfg      *api.Config
 
@@ -301,7 +470,7 @@ func (mgr *SnapshotMgr) initialiseClientset() (err error) {
      * the default namespace in the kubectl file.
      */
 
-    mgr.namespace = ""
+    namespace = ""
 
     namespaceBytes, err = ioutil.ReadFile(k8sNamespaceFile)
 
@@ -313,16 +482,9 @@ func (mgr *SnapshotMgr) initialiseClientset() (err error) {
             return
         }
 
-        mgr.namespace = clientCfg.Contexts[clientCfg.CurrentContext].Namespace
+        namespace = clientCfg.Contexts[clientCfg.CurrentContext].Namespace
     } else {
-        mgr.namespace = string(namespaceBytes)
-    }
-
-    mgr.clientset, err = kubernetes.NewForConfig(mgr.config)
-    if err != nil {
-        mgr.log.Error(err, "Could not create a new client!")
-
-        return
+        namespace = string(namespaceBytes)
     }
 
     return
@@ -520,14 +682,36 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
 func (mgr *SnapshotMgr) loadSecret() (err error) {
     var secretsClient coreV1.SecretInterface
     var secret        *apiV1.Secret
+    var namespace     string
+
+    /*
+     * Work out the namespace in which we are running.
+     */
+
+    namespace, err = mgr.getNamespace()
+
+    if err != nil {
+        return
+    }
+
+    /*
+     * Create a new client based on our current configuration.
+     */
+
+    clientset, err := kubernetes.NewForConfig(mgr.config)
+    if err != nil {
+        mgr.log.Error(err, "Could not create a new client!")
+
+        return
+    }
 
     /*
      * Attempt to retrieve the secret.
      */
 
-    secretsClient = mgr.clientset.CoreV1().Secrets(mgr.namespace)
+    secretsClient = clientset.CoreV1().Secrets(namespace)
     secret, err   = secretsClient.Get(
-                    context.TODO(), operatorName, metaV1.GetOptions{})
+                        context.TODO(), operatorName, metaV1.GetOptions{})
 
     if err != nil {
         /*
@@ -593,15 +777,12 @@ func (mgr *SnapshotMgr) start() {
      * Initialise this object.
      */
 
-    err = mgr.initialiseClientset()
-    if err != nil {
-        return
-    }
-
     err = mgr.loadSecret()
     if err != nil {
         return
     }
+
+    mgr.mutex = &sync.Mutex{}
 
     /*
      * Create the directories which will store our data.
