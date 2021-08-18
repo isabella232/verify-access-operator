@@ -13,7 +13,7 @@ import (
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/types"
 
-    "reflect"
+//    "reflect"
     "time"
     "context"
 
@@ -142,6 +142,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
         return ctrl.Result{RequeueAfter: time.Minute}, nil
     }
 
+/*
     // Update the VerifyAccess status with the pod names and list the pods for 
     // this verifyaccess's deployment
 
@@ -173,6 +174,7 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
             return ctrl.Result{}, err
         }
     }
+ */
 
     return ctrl.Result{}, nil
 }
@@ -277,6 +279,7 @@ func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
     // Setup the snapshot manager.
     (&SnapshotMgr{
         config:  mgr.GetConfig(),
+        scheme:  mgr.GetScheme(),
         log:     r.Log.WithValues("SnapshotMgr", "Server"),
         appName: appName,
     }).start()

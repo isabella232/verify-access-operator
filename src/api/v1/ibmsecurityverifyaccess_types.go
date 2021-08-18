@@ -1,18 +1,6 @@
 /*
-Copyright 2021 isamdev@au1.ibm.com.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
+ * Copyright contributors to the IBM Security Verify Access Operator project
+ */
 
 package v1
 
@@ -20,17 +8,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// IBMSecurityVerifyAccessSpec defines the desired state of IBMSecurityVerifyAccess
+// IBMSecurityVerifyAccessSpec defines the desired state of an
+// IBMSecurityVerifyAccess resource.
 type IBMSecurityVerifyAccessSpec struct {
-	//+kubebuilder:validation:Minimum=0
-	// Size is the size of the memcached deployment
-	Size int32 `json:"size"`
+    //+kubebuilder:validation:Minimum=0
+    // Size is the size of the memcached deployment
+    Size int32 `json:"size"`
+
+    //+kubebuilder:default=true
+    // AutoRestart is a boolean which indicates whether the deployment should 
+    // be restarted if a new snapshot is published
+    AutoRestart bool`json:"autoRestart"`
 }
 
-// IBMSecurityVerifyAccessStatus defines the observed state of IBMSecurityVerifyAccess
+// IBMSecurityVerifyAccessStatus defines the observed state of an
+// IBMSecurityVerifyAccess resource.
 type IBMSecurityVerifyAccessStatus struct {
 	// Nodes are the names of the memcached pods
 	Nodes []string `json:"nodes"`
@@ -39,25 +31,28 @@ type IBMSecurityVerifyAccessStatus struct {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// IBMSecurityVerifyAccess is the Schema for the ibmsecurityverifyaccesses API
+// IBMSecurityVerifyAccess is the Schema for the ibmsecurityverifyaccesses API.
 //+kubebuilder:subresource:status
 type IBMSecurityVerifyAccess struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
+    metav1.TypeMeta   `json:",inline"`
+    metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   IBMSecurityVerifyAccessSpec   `json:"spec,omitempty"`
-	Status IBMSecurityVerifyAccessStatus `json:"status,omitempty"`
+    Spec   IBMSecurityVerifyAccessSpec   `json:"spec,omitempty"`
+    Status IBMSecurityVerifyAccessStatus `json:"status,omitempty"`
 }
 
 //+kubebuilder:object:root=true
 
 // IBMSecurityVerifyAccessList contains a list of IBMSecurityVerifyAccess
+// resources.
 type IBMSecurityVerifyAccessList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []IBMSecurityVerifyAccess `json:"items"`
+    metav1.TypeMeta `json:",inline"`
+    metav1.ListMeta `json:"metadata,omitempty"`
+    Items           []IBMSecurityVerifyAccess `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&IBMSecurityVerifyAccess{}, &IBMSecurityVerifyAccessList{})
+    SchemeBuilder.Register(
+                &IBMSecurityVerifyAccess{}, &IBMSecurityVerifyAccessList{})
 }
+

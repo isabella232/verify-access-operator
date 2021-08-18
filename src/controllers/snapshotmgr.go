@@ -33,6 +33,9 @@ import (
 
     "github.com/go-logr/logr"
 
+    "sigs.k8s.io/controller-runtime/pkg/client"
+
+    "k8s.io/apimachinery/pkg/runtime"
     "k8s.io/apimachinery/pkg/types"
     "k8s.io/client-go/rest"
     "k8s.io/client-go/kubernetes"
@@ -43,6 +46,8 @@ import (
     appsV1  "k8s.io/client-go/kubernetes/typed/apps/v1"
     coreV1  "k8s.io/client-go/kubernetes/typed/core/v1"
     metaV1  "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+    ibmv1 "github.com/ibm-security/verify-access-operator/api/v1"
 )
 
 /*****************************************************************************/
@@ -109,6 +114,8 @@ var maxMemory = int64(1024)
 
 type SnapshotMgr struct {
     config    *rest.Config
+    scheme    *runtime.Scheme
+
     log       logr.Logger
     appName   string
 
@@ -146,6 +153,19 @@ func (mgr *SnapshotMgr) rollingRestart() {
         return
     }
 
+    rtClient, err := client.New(mgr.config,
+                                client.Options{
+                                    Scheme: mgr.scheme,
+                                })
+
+    if err != nil {
+        mgr.log.Error(err, "Failed to create a new controller runtime client")
+
+        mgr.mutex.Unlock()
+
+        return
+    }
+
     /*
      * Retrieve the existing deployments for our operator.
      */
@@ -169,6 +189,46 @@ func (mgr *SnapshotMgr) rollingRestart() {
      */
 
     for _, deployment := range deployments.Items {
+
+        /*
+         * Detect and retrieve the custom resource for this deployment.  The 
+         * name of the custom resource is contained in the VerifyAccess_cr 
+         * label.
+         */
+
+        crName := deployment.Labels["VerifyAccess_cr"]
+
+        if len(crName) == 0 {
+            mgr.log.Info(fmt.Sprintf(
+                "The deployment, %s, does not have a VerifyAccess_cr label",
+                deployment.Name))
+            continue
+        }
+
+        verifyaccess := &ibmv1.IBMSecurityVerifyAccess{}
+
+        err = rtClient.Get(context.TODO(),
+                            client.ObjectKey{
+                                Namespace: deployment.Namespace,
+                                Name:      crName,
+                            },
+                            verifyaccess)
+
+        if err != nil {
+            mgr.log.Error(err, fmt.Sprintf(
+                "Failed to retrieve the IBMSecurityVerifyAccess resource: %s",
+                crName))
+            continue
+        }
+
+        /*
+         * We don't bother to restart the deployment if the AutoRestart field
+         * has been set to false.
+         */
+
+        if !verifyaccess.Spec.AutoRestart {
+            continue
+        }
 
         /*
          * Determine the revision number of the deployment.  This is incremented
