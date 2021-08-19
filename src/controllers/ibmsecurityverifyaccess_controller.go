@@ -13,7 +13,6 @@ import (
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/types"
 
-//    "reflect"
     "time"
     "context"
 
@@ -69,28 +68,40 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
             ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
     _ = r.Log.WithValues("ibmsecurityverifyaccess", req.NamespacedName)
 
-    // Fetch the instance
+    /*
+     * Fetch the definition document.
+     */
+
     verifyaccess := &ibmv1.IBMSecurityVerifyAccess{}
     err          := r.Get(ctx, req.NamespacedName, verifyaccess)
 
     if err != nil {
         if errors.IsNotFound(err) {
-            // The requested object was not found.  It could have been deleted 
-            // after the reconcile request.  Owned objects are automatically 
-            // garbage collected. For additional cleanup logic use finalizers.
-            // Return and don't requeue
-            r.Log.Info("VerifyAccess resource not found. " +
-                                    "Ignoring since object must be deleted")
-            return ctrl.Result{}, nil
-        }
+            /*
+             * The requested object was not found.  It could have been deleted 
+             * after the reconcile request.  
+             */
 
-        // Error reading the object - requeue the request.
-        r.Log.Error(err, "Failed to get VerifyAccess")
+            r.Log.Info("The VerifyAccess resource was not found. " +
+                "Ignoring this error since the object must have been deleted")
+
+            err = nil
+        } else {
+            /*
+             * There was an error reading the object - requeue the request.
+             */
+
+            r.Log.Error(err, "Failed to get the VerifyAccess resource")
+        }
 
         return ctrl.Result{}, err
     }
 
-    // Check if the deployment already exists, if not create a new one.
+    /*
+     * Check if the deployment already exists, and if one doesn't we create a 
+     * new one now.
+     */
+
     found := &appsv1.Deployment{}
     err    = r.Get(
                     ctx,
@@ -99,31 +110,42 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
                         Namespace: verifyaccess.Namespace},
                     found)
 
-    if err != nil && errors.IsNotFound(err) {
-        // Define a new deployment
-        dep := r.deploymentForVerifyAccess(verifyaccess)
-        r.Log.Info("Creating a new Deployment", "Deployment.Namespace",
+    if err != nil {
+        if errors.IsNotFound(err) {
+            /*
+             * A deployment does not already exist and so we create a new 
+             * deployment.
+             */
+
+            dep := r.deploymentForVerifyAccess(verifyaccess)
+
+            r.Log.Info("Creating a new Deployment", "Deployment.Namespace",
                                 dep.Namespace, "Deployment.Name", dep.Name)
 
-        err = r.Create(ctx, dep)
+            err = r.Create(ctx, dep)
 
-        if err != nil {
-            r.Log.Error(err, "Failed to create new Deployment",
+            if err != nil {
+                r.Log.Error(err, "Failed to create the new Deployment",
                                 "Deployment.Namespace", dep.Namespace,
                                 "Deployment.Name", dep.Name)
+            }
 
-            return ctrl.Result{}, err
+        } else {
+            r.Log.Error(err, "Failed to retrieve the Deployment resource")
         }
 
-        // Deployment created successfully - return and requeue.
-        return ctrl.Result{Requeue: true}, nil
+        r.setCondition(err, true, ctx, verifyaccess)
 
-    } else if err != nil {
-        r.Log.Error(err, "Failed to get Deployment")
         return ctrl.Result{}, err
+
     }
 
-    // Ensure that the deployment size is the same as the spec.
+    /*
+     * The deployment already exists.  We now need to check to see if any
+     * of our CR fields have been updated which will require an update of
+     * the deployment.
+     */
+
     size := verifyaccess.Spec.Size
 
     if *found.Spec.Replicas != size {
@@ -133,50 +155,69 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
             r.Log.Error(err, "Failed to update Deployment",
                                 "Deployment.Namespace", found.Namespace,
                                 "Deployment.Name", found.Name)
-            return ctrl.Result{}, err
+
+            r.setCondition(err, false, ctx, verifyaccess)
         }
 
-        // Ask to requeue after 1 minute in order to give enough time for the
-        // pods be created on the cluster side and the operand be able
-        // to do the next update step accurately.
-        return ctrl.Result{RequeueAfter: time.Minute}, nil
-    }
-
-/*
-    // Update the VerifyAccess status with the pod names and list the pods for 
-    // this verifyaccess's deployment
-
-    podList := &corev1.PodList{}
-
-    listOpts := []client.ListOption {
-        client.InNamespace(verifyaccess.Namespace),
-        client.MatchingLabels(labelsForVerifyAccess(verifyaccess.Name)),
-    }
-
-    if err = r.List(ctx, podList, listOpts...); err != nil {
-        r.Log.Error(err, "Failed to list pods", "VerifyAccess.Namespace",
-                verifyaccess.Namespace, "VerifyAccess.Name", verifyaccess.Name)
+        r.setCondition(err, false, ctx, verifyaccess)
 
         return ctrl.Result{}, err
     }
 
-    podNames := getPodNames(podList.Items)
+    return ctrl.Result{}, nil
+}
 
-    // Update status.Nodes, if needed.
+/*****************************************************************************/
 
-    if !reflect.DeepEqual(podNames, verifyaccess.Status.Nodes) {
-        verifyaccess.Status.Nodes = podNames
-
-        err := r.Status().Update(ctx, verifyaccess)
-
-        if err != nil {
-            r.Log.Error(err, "Failed to update VerifyAccess status")
-            return ctrl.Result{}, err
-        }
-    }
+/*
+ * The following function is used to wrap the logic which updates the
+ * condition for a failure.
  */
 
-    return ctrl.Result{}, nil
+func (r *IBMSecurityVerifyAccessReconciler) setCondition(
+                err      error,
+                isCreate bool,
+                ctx      context.Context,
+                m        *ibmv1.IBMSecurityVerifyAccess) error {
+
+    var condReason  string
+    var condMessage string
+
+    if isCreate {
+        condReason  = "DeploymentCreated"
+        condMessage = "The deployment has been created."
+    } else {
+        condReason  = "DeploymentUpdated"
+        condMessage = "The deployment has been updated."
+    }
+
+    currentTime := metav1.NewTime(time.Now())
+
+    if err == nil {
+        m.Status.Conditions = []metav1.Condition{{
+            Type:               "Available",
+            Status:             metav1.ConditionTrue,
+            Reason:             condReason,
+            Message:            condMessage,
+            LastTransitionTime: currentTime,
+        }}
+    } else {
+        m.Status.Conditions = []metav1.Condition{{
+            Type:               "Available",
+            Status:             metav1.ConditionFalse,
+            Reason:             condReason,
+            Message:            err.Error(),
+            LastTransitionTime: currentTime,
+        }}
+    }
+
+    if err := r.Status().Update(ctx, m); err != nil {
+        r.Log.Error(err, "Failed to update the condition for the resource")
+
+        return err
+    }
+
+    return nil
 }
 
 /*****************************************************************************/
@@ -235,22 +276,6 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
 
 func labelsForVerifyAccess(name string) map[string]string {
     return map[string]string{"app": appName, "VerifyAccess_cr": name}
-}
-
-/*****************************************************************************/
-
-/*
- * The following function returns the pod names of the supplied array of pods.
- */
-
-func getPodNames(pods []corev1.Pod) []string {
-    var podNames []string
-
-    for _, pod := range pods {
-        podNames = append(podNames, pod.Name)
-    }
-
-    return podNames
 }
 
 /*****************************************************************************/

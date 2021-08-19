@@ -24,8 +24,8 @@ type IBMSecurityVerifyAccessSpec struct {
 // IBMSecurityVerifyAccessStatus defines the observed state of an
 // IBMSecurityVerifyAccess resource.
 type IBMSecurityVerifyAccessStatus struct {
-	// Nodes are the names of the memcached pods
-	Nodes []string `json:"nodes"`
+    // Conditions is the list of status conditions for this resource
+    Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
