@@ -66,7 +66,8 @@ type IBMSecurityVerifyAccessReconciler struct {
 
 func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
             ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-    _ = r.Log.WithValues("ibmsecurityverifyaccess", req.NamespacedName)
+
+    r.Log.V(9).Info("Entering a function", "Function", "Reconcile")
 
     /*
      * Fetch the definition document.
@@ -119,13 +120,13 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
 
             dep := r.deploymentForVerifyAccess(verifyaccess)
 
-            r.Log.Info("Creating a new Deployment", "Deployment.Namespace",
+            r.Log.Info("Creating a new deployment", "Deployment.Namespace",
                                 dep.Namespace, "Deployment.Name", dep.Name)
 
             err = r.Create(ctx, dep)
 
             if err != nil {
-                r.Log.Error(err, "Failed to create the new Deployment",
+                r.Log.Error(err, "Failed to create the new deployment",
                                 "Deployment.Namespace", dep.Namespace,
                                 "Deployment.Name", dep.Name)
             }
@@ -146,17 +147,25 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
      * the deployment.
      */
 
+    r.Log.V(5).Info("Found a matching deployment",
+                                "Deployment.Namespace", found.Namespace,
+                                "Deployment.Name", found.Name)
+
     size := verifyaccess.Spec.Size
 
     if *found.Spec.Replicas != size {
         found.Spec.Replicas = &size
+
         err = r.Update(ctx, found)
+
         if err != nil {
-            r.Log.Error(err, "Failed to update Deployment",
+            r.Log.Error(err, "Failed to update deployment",
                                 "Deployment.Namespace", found.Namespace,
                                 "Deployment.Name", found.Name)
-
-            r.setCondition(err, false, ctx, verifyaccess)
+        } else {
+            r.Log.Info("Updated an existing deployment",
+                                "Deployment.Namespace", found.Namespace,
+                                "Deployment.Name", found.Name)
         }
 
         r.setCondition(err, false, ctx, verifyaccess)
@@ -212,7 +221,9 @@ func (r *IBMSecurityVerifyAccessReconciler) setCondition(
     }
 
     if err := r.Status().Update(ctx, m); err != nil {
-        r.Log.Error(err, "Failed to update the condition for the resource")
+        r.Log.Error(err, "Failed to update the condition for the resource",
+                                "Deployment.Namespace", m.Namespace,
+                                "Deployment.Name", m.Name)
 
         return err
     }
@@ -228,6 +239,7 @@ func (r *IBMSecurityVerifyAccessReconciler) setCondition(
 
 func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     m *ibmv1.IBMSecurityVerifyAccess) *appsv1.Deployment {
+
     ls       := labelsForVerifyAccess(m.Name)
     replicas := m.Spec.Size
 
@@ -305,7 +317,7 @@ func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
     (&SnapshotMgr{
         config:  mgr.GetConfig(),
         scheme:  mgr.GetScheme(),
-        log:     r.Log.WithValues("SnapshotMgr", "Server"),
+        log:     r.Log.WithName("SnapshotMgr"),
         appName: appName,
     }).start()
 }
