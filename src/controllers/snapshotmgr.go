@@ -132,7 +132,7 @@ type SnapshotMgr struct {
  * will occur whenever a new snapshot is uploaded.
  */
 
-func (mgr *SnapshotMgr) rollingRestart() {
+func (mgr *SnapshotMgr) rollingRestart(path string) {
 
     mgr.log.V(9).Info("Entering a function", "Function", "rollingRestart")
 
@@ -142,6 +142,44 @@ func (mgr *SnapshotMgr) rollingRestart() {
      */
 
     mgr.mutex.Lock()
+
+    /*
+     * Work out the snapshot identifier, if a snapshot has been provided.
+     */
+
+    snapshotId := ""
+
+    if (strings.HasPrefix(path, "/snapshots/")) {
+        snapshotName := filepath.Base(filepath.Clean(path))
+
+        /*
+         * We now need to pull out the snapshot identifier from the
+         * name of the snapshot.  The snapshot name is of the format: 
+         *    isva_<version>_<snapshotid>.snapshot
+         */
+
+        parts := strings.Split(snapshotName, "_")
+
+        if len(parts) != 3 {
+            mgr.log.Info("No deployments will be restarted as the " +
+                    "snapshot name is invalid", "Snapshot.Name", snapshotName);
+
+            return;
+        }
+
+        parts = strings.Split(parts[2], ".")
+
+        if len(parts) != 2 {
+            mgr.log.Info("No deployments will be restarted as the " +
+                    "snapshot name is invalid", "Snapshot.Name", snapshotName);
+
+            return;
+        }
+
+        snapshotId = parts[0]
+
+        mgr.log.V(5).Info("Processing a snapshot", "Snapshot.Id", "snapshotId")
+    }
 
     /*
      * Create a new client based on our configuration.
@@ -236,10 +274,64 @@ func (mgr *SnapshotMgr) rollingRestart() {
          */
 
         if !verifyaccess.Spec.AutoRestart {
-            mgr.log.V(5).Info("Not performing an autorestart as the " +
-                    "AutoRestart field is set to false")
+            mgr.log.Info("Not performing an autorestart of the deployment as " +
+                    "the AutoRestart field is set to false",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name)
 
             continue
+        }
+
+        /*
+         * Check to see if the supplied file is actually used by the
+         * deployment.
+         */
+
+        if (strings.HasPrefix(path, "/fixpacks/")) {
+            /*
+             * A new fixpack has been supplied and so we only worry about
+             * restarting the deployment if it is currently using this
+             * fixpack.
+             */
+
+            fixpackName := filepath.Base(filepath.Clean(path))
+
+            fixpackInUse := false
+
+            for _, fixpack := range verifyaccess.Spec.Fixpacks {
+                if fixpackName == fixpack {
+                    fixpackInUse = true
+                    break
+                }
+            }
+
+            if ! fixpackInUse {
+                mgr.log.Info("Not performing an autorestart as the " +
+                        "supplied fixpack is not used by the deployment",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name,
+                        "Fixpack.Name", fixpackName)
+
+                continue
+            }
+
+        } else if (strings.HasPrefix(path, "/snapshots/")) {
+            /*
+             * A new snapshot has been uploaded.  We need to see if the
+             * snapshot identifier for the deployment matches our supplied
+             * snapshot identifier.
+             */
+
+            if snapshotId != verifyaccess.Spec.SnapshotId {
+                mgr.log.Info("Not performing an autorestart as the " +
+                        "supplied snapshot is not used by the deployment",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name,
+                        "Deployment.Snapshot.Id", verifyaccess.Spec.SnapshotId,
+                        "Snapshot.Id", snapshotId)
+
+                continue
+            }
         }
 
         /*
@@ -247,7 +339,9 @@ func (mgr *SnapshotMgr) rollingRestart() {
          * to trigger a rolling update.
          */
 
-        mgr.log.V(5).Info("Performing an autorestart of the deployment")
+        mgr.log.Info("Performing a rolling restart of the deployment",
+                                "Deployment.Namespace", deployment.Namespace,
+                                "Deployment.Name", deployment.Name)
 
         revision, err := strconv.Atoi(
                             deployment.Spec.Template.Annotations["revision"])
@@ -448,7 +542,7 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * thread.
              */
 
-            go mgr.rollingRestart()
+            go mgr.rollingRestart(filepath.Clean(r.URL.Path))
 
             /*
              *  Return a '201 Created' response.
