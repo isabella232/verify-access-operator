@@ -132,13 +132,54 @@ type SnapshotMgr struct {
  * will occur whenever a new snapshot is uploaded.
  */
 
-func (mgr *SnapshotMgr) rollingRestart() {
+func (mgr *SnapshotMgr) rollingRestart(path string) {
+
+    mgr.log.V(9).Info("Entering a function", "Function", "rollingRestart")
+
     /*
      * Grab a lock to ensure that we don't process multiple simultaneous
      * restarts.
      */
 
     mgr.mutex.Lock()
+
+    /*
+     * Work out the snapshot identifier, if a snapshot has been provided.
+     */
+
+    snapshotId := ""
+
+    if (strings.HasPrefix(path, "/snapshots/")) {
+        snapshotName := filepath.Base(filepath.Clean(path))
+
+        /*
+         * We now need to pull out the snapshot identifier from the
+         * name of the snapshot.  The snapshot name is of the format: 
+         *    isva_<version>_<snapshotid>.snapshot
+         */
+
+        parts := strings.Split(snapshotName, "_")
+
+        if len(parts) != 3 {
+            mgr.log.Info("No deployments will be restarted as the " +
+                    "snapshot name is invalid", "Snapshot.Name", snapshotName);
+
+            return;
+        }
+
+        parts = strings.Split(parts[2], ".")
+
+        if len(parts) != 2 {
+            mgr.log.Info("No deployments will be restarted as the " +
+                    "snapshot name is invalid", "Snapshot.Name", snapshotName);
+
+            return;
+        }
+
+        snapshotId = parts[0]
+
+        mgr.log.V(5).Info("Processing a snapshot", "Snapshot.Id", "snapshotId")
+    }
 
     /*
      * Create a new client based on our configuration.
@@ -190,6 +231,10 @@ func (mgr *SnapshotMgr) rollingRestart() {
 
     for _, deployment := range deployments.Items {
 
+        mgr.log.V(5).Info("Checking a deployment",
+                                "Deployment.Namespace", deployment.Namespace,
+                                "Deployment.Name", deployment.Name)
+
         /*
          * Detect and retrieve the custom resource for this deployment.  The 
          * name of the custom resource is contained in the VerifyAccess_cr 
@@ -199,9 +244,10 @@ func (mgr *SnapshotMgr) rollingRestart() {
         crName := deployment.Labels["VerifyAccess_cr"]
 
         if len(crName) == 0 {
-            mgr.log.Info(fmt.Sprintf(
-                "The deployment, %s, does not have a VerifyAccess_cr label",
-                deployment.Name))
+            mgr.log.Info("The deployment does not have a VerifyAccess_cr label",
+                                "Deployment.Namespace", deployment.Namespace,
+                                "Deployment.Name", deployment.Name)
+
             continue
         }
 
@@ -215,9 +261,10 @@ func (mgr *SnapshotMgr) rollingRestart() {
                             verifyaccess)
 
         if err != nil {
-            mgr.log.Error(err, fmt.Sprintf(
-                "Failed to retrieve the IBMSecurityVerifyAccess resource: %s",
-                crName))
+            mgr.log.Error(err,
+                "Failed to retrieve the IBMSecurityVerifyAccess resource",
+                "CustomResource.Name", crName)
+
             continue
         }
 
@@ -227,13 +274,74 @@ func (mgr *SnapshotMgr) rollingRestart() {
          */
 
         if !verifyaccess.Spec.AutoRestart {
+            mgr.log.Info("Not performing an autorestart of the deployment as " +
+                    "the AutoRestart field is set to false",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name)
+
             continue
+        }
+
+        /*
+         * Check to see if the supplied file is actually used by the
+         * deployment.
+         */
+
+        if (strings.HasPrefix(path, "/fixpacks/")) {
+            /*
+             * A new fixpack has been supplied and so we only worry about
+             * restarting the deployment if it is currently using this
+             * fixpack.
+             */
+
+            fixpackName := filepath.Base(filepath.Clean(path))
+
+            fixpackInUse := false
+
+            for _, fixpack := range verifyaccess.Spec.Fixpacks {
+                if fixpackName == fixpack {
+                    fixpackInUse = true
+                    break
+                }
+            }
+
+            if ! fixpackInUse {
+                mgr.log.Info("Not performing an autorestart as the " +
+                        "supplied fixpack is not used by the deployment",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name,
+                        "Fixpack.Name", fixpackName)
+
+                continue
+            }
+
+        } else if (strings.HasPrefix(path, "/snapshots/")) {
+            /*
+             * A new snapshot has been uploaded.  We need to see if the
+             * snapshot identifier for the deployment matches our supplied
+             * snapshot identifier.
+             */
+
+            if snapshotId != verifyaccess.Spec.SnapshotId {
+                mgr.log.Info("Not performing an autorestart as the " +
+                        "supplied snapshot is not used by the deployment",
+                        "Deployment.Namespace", deployment.Namespace,
+                        "Deployment.Name", deployment.Name,
+                        "Deployment.Snapshot.Id", verifyaccess.Spec.SnapshotId,
+                        "Snapshot.Id", snapshotId)
+
+                continue
+            }
         }
 
         /*
          * Determine the revision number of the deployment.  This is incremented
          * to trigger a rolling update.
          */
+
+        mgr.log.Info("Performing a rolling restart of the deployment",
+                                "Deployment.Namespace", deployment.Namespace,
+                                "Deployment.Name", deployment.Name)
 
         revision, err := strconv.Atoi(
                             deployment.Spec.Template.Annotations["revision"])
@@ -243,6 +351,8 @@ func (mgr *SnapshotMgr) rollingRestart() {
         } else {
             revision++
         }
+
+        mgr.log.V(5).Info("New revision number", "Revision", revision)
 
         /*
          * Patch the deployment descriptor with the incremented revision
@@ -268,13 +378,15 @@ func (mgr *SnapshotMgr) rollingRestart() {
                         metaV1.PatchOptions{})
 
         if err != nil {
-            mgr.log.Error(err, fmt.Sprintf(
-                    "Failed to update the deployment: %s", deployment.Name))
+            mgr.log.Error(err, "Failed to update the deployment",
+                            "Deployment.Name", deployment.Name)
 
             mgr.mutex.Unlock()
 
             return
         }
+
+        mgr.log.V(5).Info("Successfully updated the deployment")
     }
 
     mgr.mutex.Unlock()
@@ -288,6 +400,9 @@ func (mgr *SnapshotMgr) rollingRestart() {
  */
 
 func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
+
+    mgr.log.V(9).Info("Entering a function", "Function", "serve")
+
     /*
      * Check the authorization to this Web server.  The username should always
      * be the same, but we use a different password for the GET/POST methods.
@@ -305,6 +420,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 
         http.Error(w,
             http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+
+        mgr.log.V(5).Info("Authentication failed", "Username", username)
 
         return
     }
@@ -338,6 +455,9 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
         http.Error(w,
             http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 
+        mgr.log.V(5).Info("An invalid path has been requested",
+                            "Path", r.URL.Path)
+
         return
     }
 
@@ -354,6 +474,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "GET":
+            mgr.log.Info("Processing a GET", "Path", r.URL.Path)
+
             http.ServeFile(w, r, fileName)
 
         /*
@@ -361,6 +483,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "POST":
+            mgr.log.Info("Processing a POST", "Path", r.URL.Path)
+
             /*
              * Retrieve the file parameter from the form.
              */
@@ -373,6 +497,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
                 http.Error(w,
                     http.StatusText(http.StatusBadRequest),
                     http.StatusBadRequest)
+
+                mgr.log.V(5).Error(err, "An invalid POST has been received")
 
                 return
             }
@@ -388,6 +514,9 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
             if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
+                mgr.log.V(5).Error(err, "Failed to create the file",
+                                        "File", fileName)
+
 		return
             }
 
@@ -401,6 +530,10 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 
             if err != nil {
                 http.Error(w, err.Error(), http.StatusInternalServerError)
+
+                mgr.log.V(5).Error(err, "Failed to copy the file",
+                                        "File", fileName)
+
                 return
             }
 
@@ -409,13 +542,15 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * thread.
              */
 
-            go mgr.rollingRestart()
+            go mgr.rollingRestart(filepath.Clean(r.URL.Path))
 
             /*
              *  Return a '201 Created' response.
              */
 
             http.Error(w, "", http.StatusCreated)
+
+            mgr.log.V(5).Info("The file has been saved", "File", fileName)
 
         /*
          * For a DELETE we want to attempt to delete the specified file.  The
@@ -424,6 +559,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "DELETE":
+            mgr.log.Info("Processing a DELETE", "Path", r.URL.Path)
+
             err := os.Remove(fileName)
 
             var rspCode int
@@ -440,6 +577,14 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
                 rspText = err.Error()
             }
 
+            if err == nil {
+                mgr.log.V(5).Error(err, "Failed to delete the file",
+                                        "File", fileName)
+            } else {
+                mgr.log.V(5).Info("Successfully deleted the file",
+                                        "File", fileName)
+            }
+
             http.Error(w, rspText, rspCode)
 
         /*
@@ -447,9 +592,14 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
 	default:
+            mgr.log.V(5).Info("Received a request with an invalid method",
+                                "Path", r.URL.Path,
+                                "Method", r.Method)
+
             http.Error(w,
                 http.StatusText(http.StatusNotImplemented),
                 http.StatusNotImplemented)
+
     }
 }
 
@@ -463,6 +613,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 func (mgr *SnapshotMgr) getNamespace() (namespace string, err error) {
     var namespaceBytes []byte
     var clientCfg      *api.Config
+
+    mgr.log.V(9).Info("Entering a function", "Function", "getNamespace")
 
     /*
      * Work out the namespace which should be used.  In a Kubernetes
@@ -478,7 +630,7 @@ func (mgr *SnapshotMgr) getNamespace() (namespace string, err error) {
         clientCfg, err = clientcmd.NewDefaultClientConfigLoadingRules().Load()
 
         if err != nil {
-            mgr.log.Error(err, "Could not load the client configuration!")
+            mgr.log.Error(err, "Failed to load the client configuration")
             return
         }
 
@@ -486,6 +638,8 @@ func (mgr *SnapshotMgr) getNamespace() (namespace string, err error) {
     } else {
         namespace = string(namespaceBytes)
     }
+
+    mgr.log.V(5).Info("Found a namespace to use", "Namespace", namespace)
 
     return
 }
@@ -525,6 +679,8 @@ func (mgr *SnapshotMgr) generateRandomString(length int) (string, error) {
 
 func (mgr *SnapshotMgr) generateKey() (cert string, key string, err error) {
 
+    mgr.log.V(9).Info("Entering a function", "Function", "generateKey")
+
     /*
      * Generate the RSA key.
      */
@@ -532,7 +688,7 @@ func (mgr *SnapshotMgr) generateKey() (cert string, key string, err error) {
     priv, err := rsa.GenerateKey(rand.Reader, keyLength)
 
     if err != nil {
-        mgr.log.Error(err, "Could not generate an RSA key!")
+        mgr.log.Error(err, "Failed to generate an RSA key")
         return
     }
 
@@ -565,7 +721,7 @@ func (mgr *SnapshotMgr) generateKey() (cert string, key string, err error) {
                 &priv.PublicKey, priv)
 
     if err != nil {
-        mgr.log.Error(err, "Could not generate the certificate!")
+        mgr.log.Error(err, "Failed to generate the certificate")
         return
     }
 
@@ -611,6 +767,8 @@ func (mgr *SnapshotMgr) generateKey() (cert string, key string, err error) {
 func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
                                         secret *apiV1.Secret, err error) {
 
+    mgr.log.V(9).Info("Entering a function", "Function", "createSecret")
+
     /*
      * Generate a random password for the read-only and read-write credentials.
      */
@@ -618,7 +776,7 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
     ro_pwd, err := mgr.generateRandomString(pwdLength)
 
     if err != nil {
-        mgr.log.Error(err, "Could not generate a password!")
+        mgr.log.Error(err, "Failed to generate a password")
 
         return
     }
@@ -626,7 +784,7 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
     rw_pwd, err := mgr.generateRandomString(pwdLength)
 
     if err != nil {
-        mgr.log.Error(err, "Could not generate a password!")
+        mgr.log.Error(err, "Failed to generate a password")
 
         return
     }
@@ -661,7 +819,8 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
     secret, err = client.Create(context.TODO(), secret, metaV1.CreateOptions{})
 
     if err != nil {
-        mgr.log.Error(err, "Could not create the secret!")
+        mgr.log.Error(err, "Failed to create the secret",
+                            "Secret.Name", operatorName)
 
         return
     }
@@ -684,6 +843,8 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
     var secret        *apiV1.Secret
     var namespace     string
 
+    mgr.log.V(9).Info("Entering a function", "Function", "loadSecret")
+
     /*
      * Work out the namespace in which we are running.
      */
@@ -700,7 +861,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
 
     clientset, err := kubernetes.NewForConfig(mgr.config)
     if err != nil {
-        mgr.log.Error(err, "Could not create a new client!")
+        mgr.log.Error(err, "Failed to create a new client")
 
         return
     }
@@ -714,6 +875,8 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
                         context.TODO(), operatorName, metaV1.GetOptions{})
 
     if err != nil {
+        mgr.log.V(5).Info("Creating the secret", "Secret.Name", operatorName)
+
         /*
          * The secret doesn't already exist and so we try to create the
          * secret now.
@@ -724,6 +887,8 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
         if err != nil {
             return
         }
+    } else {
+        mgr.log.V(5).Info("Found the secret", "Secret.Name", operatorName)
     }
 
     /*
@@ -745,9 +910,8 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
         value, ok := secret.Data[key]
 
         if !ok {
-            mgr.log.Error(err, fmt.Sprintf(
-                    "The secret, %s, is missing a required field: '%s'!",
-                    operatorName, key))
+            mgr.log.Error(err, "The secret is missing a required field",
+                    "Secret.Name", operatorName, "Field.Name", key)
 
             err = errors.New("Missing field")
 
@@ -770,8 +934,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
 func (mgr *SnapshotMgr) start() {
     var err error
 
-    mgr.log.Info(
-        fmt.Sprintf("Starting the snapshot manager on port: %v", httpsPort))
+    mgr.log.Info("Starting the snapshot manager", "Port", httpsPort)
 
     /*
      * Initialise this object.
@@ -798,8 +961,9 @@ func (mgr *SnapshotMgr) start() {
         err = os.Mkdir(dir, 0700)
 
         if err != nil && !os.IsExist(err) {
-            mgr.log.Error(err,
-                    fmt.Sprintf("Failed to create the data directory: %s", dir))
+            mgr.log.Error(err, "Failed to create the data directory",
+                                "Directory", dir)
+
             return
         }
     }
@@ -834,6 +998,8 @@ func (mgr *SnapshotMgr) start() {
      * Start listening for requests in a different thread.
      */
 
+    mgr.log.V(5).Info("Waiting for Web requests")
+
     go func() {
         if err := mgr.server.ListenAndServeTLS("", "");
                         err != http.ErrServerClosed {
@@ -850,7 +1016,7 @@ func (mgr *SnapshotMgr) start() {
         <-signalChan
 
     mgr.log.Info("Received a shutdown signal, shutting down the snapshot " +
-                    "manager gracefully...")
+                    "manager gracefully")
 
     mgr.server.Shutdown(context.Background())
 }

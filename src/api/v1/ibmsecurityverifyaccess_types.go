@@ -18,14 +18,28 @@ type IBMSecurityVerifyAccessSpec struct {
     //+kubebuilder:default=true
     // AutoRestart is a boolean which indicates whether the deployment should 
     // be restarted if a new snapshot is published
-    AutoRestart bool`json:"autoRestart"`
+    // +optional
+    AutoRestart bool `json:"autoRestart"`
+
+    //+kubebuilder:default=published
+    // SnapshotId is a string which is used to indicate the identifier of the
+    // snapshot which should be used.  If no identifier is specified a default
+    // snapshot of 'published' will be used.
+    // +optional
+    SnapshotId string `json:"snapshotId"`
+
+    // Fixpacks is an array of strings which indicate the name of fixpacks
+    // which should be installed in the deployment.  This corresponds to 
+    // setting the FIXPACKS environment variable in the deployment itself.
+    // +optional
+    Fixpacks []string `json:"fixpacks,omitempty"`
 }
 
 // IBMSecurityVerifyAccessStatus defines the observed state of an
 // IBMSecurityVerifyAccess resource.
 type IBMSecurityVerifyAccessStatus struct {
-	// Nodes are the names of the memcached pods
-	Nodes []string `json:"nodes"`
+    // Conditions is the list of status conditions for this resource
+    Conditions []metav1.Condition `json:"conditions,omitempty"`
 }
 
 //+kubebuilder:object:root=true
