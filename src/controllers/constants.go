@@ -35,6 +35,13 @@ const serviceName string =
 const kindName string = "IBMSecurityVerifyAccess"
 
 /*
+ * The name of the user which is used to authenticate to the snapshot
+ * manager.
+ */
+
+const snapshotMgrUser string = "apikey"
+
+/*
  * The name of the various fields in the secret.
  */
 

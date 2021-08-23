@@ -703,7 +703,7 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
             Name: operatorName,
         },
         StringData: map[string]string{
-            userFieldName:  "apikey",
+            userFieldName:  snapshotMgrUser,
             rwPwdFieldName: rw_pwd,
             roPwdFieldName: ro_pwd,
             certFieldName:  cert,
@@ -822,15 +822,10 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
 /*****************************************************************************/
 
 /*
- * This function is used to start the snapshot manager, and then wait until
- * we are told to terminate.
+ * This function is used to initialize the snapshot manager.
  */
 
-func (mgr *SnapshotMgr) start() {
-    var err error
-
-    mgr.log.Info("Starting the snapshot manager", "Port", httpsPort)
-
+func (mgr *SnapshotMgr) initialize() (err error) {
     /*
      * Initialise this object.
      */
@@ -860,8 +855,26 @@ func (mgr *SnapshotMgr) start() {
                                 "Directory", dir)
 
             return
+        } else {
+            err = nil
         }
+
     }
+
+    return 
+}
+
+/*****************************************************************************/
+
+/*
+ * This function is used to start the snapshot manager, and then wait until
+ * we are told to terminate.
+ */
+
+func (mgr *SnapshotMgr) start() {
+    var err error
+
+    mgr.log.Info("Starting the snapshot manager", "Port", httpsPort)
 
     /*
      * Define the http server and server handler.
