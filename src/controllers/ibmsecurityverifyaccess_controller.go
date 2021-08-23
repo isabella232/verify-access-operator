@@ -13,6 +13,7 @@ import (
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
     "k8s.io/apimachinery/pkg/types"
 
+    "fmt"
     "time"
     "context"
 
@@ -31,7 +32,7 @@ import (
  * Global variables.
  */
 
-var appName = "IBMSecurityVerifyAccess"
+var localNamespace string = "default"
 
 /*****************************************************************************/
 
@@ -240,33 +241,76 @@ func (r *IBMSecurityVerifyAccessReconciler) setCondition(
 func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     m *ibmv1.IBMSecurityVerifyAccess) *appsv1.Deployment {
 
-    ls       := labelsForVerifyAccess(m.Name)
     replicas := m.Spec.Size
+    labels   := map[string]string{
+            "kind":            kindName,
+            "app":             m.Name,
+            "VerifyAccess_cr": m.Name,
+        }
+
+    /*
+     * Set up the environment variables which are used to access the
+     * embedded snapshot manager.
+     */
+
+    notOptional := false
+
+    env := []corev1.EnvVar{
+        {
+            Name: "CONFIG_SERVICE_URL",
+            Value: fmt.Sprintf("https://%s.%s.svc.cluster.local:%d",
+                        serviceName, localNamespace, httpsPort),
+        },
+        {
+            Name: "CONFIG_SERVICE_USER_NAME",
+            ValueFrom: &corev1.EnvVarSource{
+                SecretKeyRef: &corev1.SecretKeySelector{
+                    LocalObjectReference: corev1.LocalObjectReference{
+                        Name: operatorName,
+                    },
+                    Key: userFieldName,
+                    Optional: &notOptional,
+                },
+            },
+        },
+        {
+            Name: "CONFIG_SERVICE_USER_PWD",
+            ValueFrom: &corev1.EnvVarSource{
+                SecretKeyRef: &corev1.SecretKeySelector{
+                    LocalObjectReference: corev1.LocalObjectReference{
+                        Name: operatorName,
+                    },
+                    Key: roPwdFieldName,
+                    Optional: &notOptional,
+                },
+            },
+        },
+    }
+
+    /*
+     * Set up the rest of the deployment descriptor.
+     */
 
     dep := &appsv1.Deployment{
         ObjectMeta: metav1.ObjectMeta{
             Name:      m.Name,
             Namespace: m.Namespace,
-            Labels:    ls,
+            Labels:    labels,
         },
         Spec: appsv1.DeploymentSpec{
             Replicas: &replicas,
             Selector: &metav1.LabelSelector{
-                MatchLabels: ls,
+                MatchLabels: labels,
             },
             Template: corev1.PodTemplateSpec{
                 ObjectMeta: metav1.ObjectMeta{
-                    Labels: ls,
+                    Labels: labels,
                 },
                 Spec: corev1.PodSpec{
                     Containers: []corev1.Container{{
-                        Image:   "memcached:1.4.36-alpine",
-                        Name:    "memcached",
-                        Command: []string{"memcached", "-m=64", "-o", "modern", "-v"},
-                        Ports: []corev1.ContainerPort{{
-                            ContainerPort: 11211,
-                            Name:          "memcached",
-                        }},
+                        Image: m.Spec.Image,
+                        Name:  m.Name,
+                        Env:   env,
                     }},
                 },
             },
@@ -282,23 +326,27 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
 /*****************************************************************************/
 
 /*
- * The following function returns the labels which are used when selecting
- * the resources belonging to the given VerifyAccess CR name.
- */
-
-func labelsForVerifyAccess(name string) map[string]string {
-    return map[string]string{"app": appName, "VerifyAccess_cr": name}
-}
-
-/*****************************************************************************/
-
-/*
  * The following function is used to set up the controller with the Manager.
  */
 
-func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(mgr ctrl.Manager) error {
-    // start the snapshot manager
+func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(
+                mgr ctrl.Manager) error {
+
+    /*
+     * Work out the namespace in which we are running.
+     */
+
+    localNamespace, _ = getLocalNamespace(r.Log)
+
+    /*
+     * Start the snapshot manager.
+     */
+
     go r.startSnapshotMgr(mgr)
+
+    /*
+     * Register our controller.
+     */
 
     return ctrl.NewControllerManagedBy(mgr).
             For(&ibmv1.IBMSecurityVerifyAccess{}).
@@ -318,7 +366,6 @@ func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
         config:  mgr.GetConfig(),
         scheme:  mgr.GetScheme(),
         log:     r.Log.WithName("SnapshotMgr"),
-        appName: appName,
     }).start()
 }
 

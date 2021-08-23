@@ -18,7 +18,6 @@ import (
     "crypto/x509/pkix"
     "fmt"
     "io"
-    "io/ioutil"
     "math/big"
     "net"
     "net/http"
@@ -39,8 +38,6 @@ import (
     "k8s.io/apimachinery/pkg/types"
     "k8s.io/client-go/rest"
     "k8s.io/client-go/kubernetes"
-    "k8s.io/client-go/tools/clientcmd"
-    "k8s.io/client-go/tools/clientcmd/api"
 
     apiV1   "k8s.io/api/core/v1"
     appsV1  "k8s.io/client-go/kubernetes/typed/apps/v1"
@@ -52,72 +49,11 @@ import (
 
 /*****************************************************************************/
 
-/*
- * Global variables.
- */
-
-/*
- * The name of the kubernetes file which is used to determine the namespace
- * in which the snapshotmgr is running.
- */
-
-var k8sNamespaceFile = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-
-/*
- * The name of the secret which contains our credential information.
- */
-
-var operatorName = "verify-access-operator"
-
-/*
- * The name of the various fields in the secret.
- */
-
-var userFieldName  = "user"
-var roPwdFieldName = "ro.pwd"
-var rwPwdFieldName = "rw.pwd"
-var certFieldName  = "tls.cert"
-var keyFieldName   = "tls.key"
-
-/*
- * The length of our passwords.
- */
-
-var pwdLength = 36
-
-/*
- * The length of the X509 key.
- */
-
-var keyLength = 2048;
-
-/*
- * The port on which we will listen for requests.
- */
-
-var httpsPort = 7443
-
-/*
- * The directory on the file system which holds our uploaded files.
- */
-
-var dataRoot = "/data"
-
-/*
- * The maximum amount of memory which should be used when receiving a 
- * file.
- */
-
-var maxMemory = int64(1024)
-
-/*****************************************************************************/
-
 type SnapshotMgr struct {
     config    *rest.Config
     scheme    *runtime.Scheme
 
     log       logr.Logger
-    appName   string
 
     server    *http.Server
     creds     map[string]string
@@ -214,7 +150,7 @@ func (mgr *SnapshotMgr) rollingRestart(path string) {
     deployments, err := appsV1Client.Deployments("").List(
                     context.TODO(),
                     metaV1.ListOptions{
-                        LabelSelector: fmt.Sprintf("app=%s", mgr.appName),
+                        LabelSelector: fmt.Sprintf("kind=%s", kindName),
                     })
     if err != nil {
         mgr.log.Error(err, "Failed to list deployments")
@@ -606,47 +542,6 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 /*****************************************************************************/
 
 /*
- * This function is used to determine the namespace in which the current
- * pod is running.
- */
-
-func (mgr *SnapshotMgr) getNamespace() (namespace string, err error) {
-    var namespaceBytes []byte
-    var clientCfg      *api.Config
-
-    mgr.log.V(9).Info("Entering a function", "Function", "getNamespace")
-
-    /*
-     * Work out the namespace which should be used.  In a Kubernetes
-     * environment we read this from the namespace file, otherwise we use
-     * the default namespace in the kubectl file.
-     */
-
-    namespace = ""
-
-    namespaceBytes, err = ioutil.ReadFile(k8sNamespaceFile)
-
-    if err != nil {
-        clientCfg, err = clientcmd.NewDefaultClientConfigLoadingRules().Load()
-
-        if err != nil {
-            mgr.log.Error(err, "Failed to load the client configuration")
-            return
-        }
-
-        namespace = clientCfg.Contexts[clientCfg.CurrentContext].Namespace
-    } else {
-        namespace = string(namespaceBytes)
-    }
-
-    mgr.log.V(5).Info("Found a namespace to use", "Namespace", namespace)
-
-    return
-}
-
-/*****************************************************************************/
-
-/*
  * This function is used to generate a secure random password based on the 
  * specified password length.
  */
@@ -849,7 +744,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
      * Work out the namespace in which we are running.
      */
 
-    namespace, err = mgr.getNamespace()
+    namespace, err = getLocalNamespace(mgr.log)
 
     if err != nil {
         return
