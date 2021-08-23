@@ -7,15 +7,18 @@ package controllers
 /*****************************************************************************/
 
 import (
+    apiv1  "k8s.io/api/core/v1"
     appsv1 "k8s.io/api/apps/v1"
     corev1 "k8s.io/api/core/v1"
-    "k8s.io/apimachinery/pkg/api/errors"
     metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+    "k8s.io/apimachinery/pkg/api/errors"
     "k8s.io/apimachinery/pkg/types"
 
-    "fmt"
-    "time"
     "context"
+    "fmt"
+    "sync"
+    "time"
 
     "github.com/go-logr/logr"
 
@@ -29,22 +32,18 @@ import (
 /*****************************************************************************/
 
 /*
- * Global variables.
- */
-
-var localNamespace string = "default"
-
-/*****************************************************************************/
-
-/*
  * The IBMSecurityVerifyAccessReconciler structure reconciles an 
  * IBMSecurityVerifyAccess object.
  */
 
 type IBMSecurityVerifyAccessReconciler struct {
     client.Client
-    Log    logr.Logger
-    Scheme *runtime.Scheme
+
+    Log            logr.Logger
+    Scheme         *runtime.Scheme
+    localNamespace string
+    snapshotMgr    SnapshotMgr
+    secretMutex    *sync.Mutex
 }
 
 /*****************************************************************************/
@@ -115,21 +114,31 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
     if err != nil {
         if errors.IsNotFound(err) {
             /*
-             * A deployment does not already exist and so we create a new 
-             * deployment.
+             * The deployment requires a secret which contains the snapshot
+             * manager credentials.  We need to create the secret in the
+             * destination namespace if it doesn't already exist.
              */
 
-            dep := r.deploymentForVerifyAccess(verifyaccess)
+            err = r.createSecret(ctx, verifyaccess)
 
-            r.Log.Info("Creating a new deployment", "Deployment.Namespace",
+            if err == nil {
+                /*
+                 * A deployment does not already exist and so we create a new 
+                 * deployment.
+                 */
+
+                dep := r.deploymentForVerifyAccess(verifyaccess)
+
+                r.Log.Info("Creating a new deployment", "Deployment.Namespace",
                                 dep.Namespace, "Deployment.Name", dep.Name)
 
-            err = r.Create(ctx, dep)
+                err = r.Create(ctx, dep)
 
-            if err != nil {
-                r.Log.Error(err, "Failed to create the new deployment",
+                if err != nil {
+                    r.Log.Error(err, "Failed to create the new deployment",
                                 "Deployment.Namespace", dep.Namespace,
                                 "Deployment.Name", dep.Name)
+                }
             }
 
         } else {
@@ -235,6 +244,78 @@ func (r *IBMSecurityVerifyAccessReconciler) setCondition(
 /*****************************************************************************/
 
 /*
+ * The following function is used to create the secret which is used by
+ * the deployment.
+ */
+
+func (r *IBMSecurityVerifyAccessReconciler) createSecret(
+                    ctx context.Context,
+                    m   *ibmv1.IBMSecurityVerifyAccess) (err error) {
+
+    r.secretMutex.Lock()
+
+    /*
+     * Check to see if the secret already exists.
+     */
+
+    secret := &corev1.Secret{}
+    err     = r.Get(
+                    ctx,
+                    types.NamespacedName{
+                        Name:      operatorName,
+                        Namespace: m.Namespace,
+                    },
+                    secret)
+
+    if err != nil {
+        if errors.IsNotFound(err) {
+            /*
+             * The secret doesn't already exist and so we need to create
+             * the secret now.
+             */
+
+            r.Log.V(5).Info("Creating the secret",
+                                "Deployment.Namespace", m.Namespace,
+                                "Secret.Name", operatorName)
+
+            secret = &corev1.Secret{
+                    Type: apiv1.SecretTypeOpaque,
+                    ObjectMeta: metav1.ObjectMeta {
+                        Name:      operatorName,
+                        Namespace: m.Namespace,
+                    },
+                    StringData: map[string]string {
+                        userFieldName:  snapshotMgrUser,
+                        roPwdFieldName: r.snapshotMgr.creds[roPwdFieldName],
+                    },
+                }
+
+            err = r.Create(ctx, secret)
+
+            if err != nil {
+                r.Log.Error(err, "Failed to create the secret",
+                            "Deployment.Namespace", m.Namespace,
+                            "Secret.Name", operatorName)
+            }
+        } else {
+            r.Log.Error(err, "Failed to retrieve the secret",
+                            "Deployment.Namespace", m.Namespace,
+                            "Secret.Name", operatorName)
+        }
+    } else {
+        r.Log.V(5).Info("Found an existing secret",
+                                "Deployment.Namespace", m.Namespace,
+                                "Secret.Name", operatorName)
+    }
+
+    r.secretMutex.Unlock()
+
+    return
+}
+
+/*****************************************************************************/
+
+/*
  * The following function is used to return a VerifyAccess Deployment object.
  */
 
@@ -259,7 +340,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
         {
             Name: "CONFIG_SERVICE_URL",
             Value: fmt.Sprintf("https://%s.%s.svc.cluster.local:%d",
-                        serviceName, localNamespace, httpsPort),
+                        serviceName, r.localNamespace, httpsPort),
         },
         {
             Name: "CONFIG_SERVICE_USER_NAME",
@@ -332,17 +413,31 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
 func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(
                 mgr ctrl.Manager) error {
 
+    r.secretMutex = &sync.Mutex{}
+
     /*
      * Work out the namespace in which we are running.
      */
 
-    localNamespace, _ = getLocalNamespace(r.Log)
+    r.localNamespace, _ = getLocalNamespace(r.Log)
 
     /*
-     * Start the snapshot manager.
+     * Initialise and start the snapshot manager.
      */
 
-    go r.startSnapshotMgr(mgr)
+    r.snapshotMgr = SnapshotMgr{
+        config: mgr.GetConfig(),
+        scheme: mgr.GetScheme(),
+        log:    r.Log.WithName("SnapshotMgr"),
+    }
+
+    err := r.snapshotMgr.initialize()
+
+    if err != nil {
+        return err
+    }
+
+    go r.snapshotMgr.start()
 
     /*
      * Register our controller.
@@ -352,21 +447,6 @@ func (r *IBMSecurityVerifyAccessReconciler) SetupWithManager(
             For(&ibmv1.IBMSecurityVerifyAccess{}).
             Owns(&appsv1.Deployment{}).
             Complete(r)
-}
-
-/*****************************************************************************/
-
-/*
- * This function is used to setup and start the snapshot manager server. 
- */
-
-func (r *IBMSecurityVerifyAccessReconciler) startSnapshotMgr(mgr ctrl.Manager) {
-    // Setup the snapshot manager.
-    (&SnapshotMgr{
-        config:  mgr.GetConfig(),
-        scheme:  mgr.GetScheme(),
-        log:     r.Log.WithName("SnapshotMgr"),
-    }).start()
 }
 
 /*****************************************************************************/
