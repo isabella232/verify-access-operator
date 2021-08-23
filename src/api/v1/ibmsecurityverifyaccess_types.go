@@ -11,8 +11,13 @@ import (
 // IBMSecurityVerifyAccessSpec defines the desired state of an
 // IBMSecurityVerifyAccess resource.
 type IBMSecurityVerifyAccessSpec struct {
+    // The name of the image which will be used in the deployment.
+    Image string `json:"image"`
+
     //+kubebuilder:validation:Minimum=0
+    //+kubebuilder:default=1
     // Size is the size of the memcached deployment
+    // +optional
     Size int32 `json:"size"`
 
     //+kubebuilder:default=true

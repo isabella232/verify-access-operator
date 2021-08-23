@@ -3,7 +3,8 @@ kind: IBMSecurityVerifyAccess
 metadata:
   name: ibmsecurityverifyaccess-sample
 spec:
-  # Add fields here
+  image: "ibmcom/verify-access-wrp:10.0.3.0"
+
   size: 1
   autoRestart: true
   snapshotId: published
