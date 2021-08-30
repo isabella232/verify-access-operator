@@ -46,6 +46,7 @@ const snapshotMgrUser string = "apikey"
  */
 
 const userFieldName  string = "user"
+const urlFieldName   string = "url"
 const roPwdFieldName string = "ro.pwd"
 const rwPwdFieldName string = "rw.pwd"
 const certFieldName  string = "tls.cert"

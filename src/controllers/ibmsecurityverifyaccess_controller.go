@@ -16,7 +16,6 @@ import (
     "k8s.io/apimachinery/pkg/types"
 
     "context"
-    "fmt"
     "sync"
     "time"
 
@@ -286,6 +285,7 @@ func (r *IBMSecurityVerifyAccessReconciler) createSecret(
                     },
                     StringData: map[string]string {
                         userFieldName:  snapshotMgrUser,
+                        urlFieldName:   r.snapshotMgr.creds[urlFieldName],
                         roPwdFieldName: r.snapshotMgr.creds[roPwdFieldName],
                     },
                 }
@@ -339,8 +339,15 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
     env := []corev1.EnvVar{
         {
             Name: "CONFIG_SERVICE_URL",
-            Value: fmt.Sprintf("https://%s.%s.svc.cluster.local:%d",
-                        serviceName, r.localNamespace, httpsPort),
+            ValueFrom: &corev1.EnvVarSource{
+                SecretKeyRef: &corev1.SecretKeySelector{
+                    LocalObjectReference: corev1.LocalObjectReference{
+                        Name: operatorName,
+                    },
+                    Key: urlFieldName,
+                    Optional: &notOptional,
+                },
+            },
         },
         {
             Name: "CONFIG_SERVICE_USER_NAME",

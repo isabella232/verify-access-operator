@@ -659,7 +659,8 @@ func (mgr *SnapshotMgr) generateKey() (cert string, key string, err error) {
  *     - the server certificate and key
  */
 
-func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
+func (mgr *SnapshotMgr) createSecret(
+                client coreV1.SecretInterface, namespace string) (
                                         secret *apiV1.Secret, err error) {
 
     mgr.log.V(9).Info("Entering a function", "Function", "createSecret")
@@ -693,6 +694,9 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
         return
     }
 
+    url := fmt.Sprintf("https://%s.%s.svc.cluster.local:%d",
+                                    serviceName, namespace, httpsPort)
+
     /*
      * Create the secret.
      */
@@ -704,6 +708,7 @@ func (mgr *SnapshotMgr) createSecret(client coreV1.SecretInterface) (
         },
         StringData: map[string]string{
             userFieldName:  snapshotMgrUser,
+            urlFieldName:   url,
             rwPwdFieldName: rw_pwd,
             roPwdFieldName: ro_pwd,
             certFieldName:  cert,
@@ -777,7 +782,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
          * secret now.
          */
 
-        secret, err = mgr.createSecret(secretsClient)
+        secret, err = mgr.createSecret(secretsClient, namespace)
 
         if err != nil {
             return
@@ -795,6 +800,7 @@ func (mgr *SnapshotMgr) loadSecret() (err error) {
 
     keys := []string {
                     userFieldName,
+                    urlFieldName,
                     roPwdFieldName,
                     rwPwdFieldName,
                     certFieldName,
