@@ -1,10 +1,68 @@
 apiVersion: ibm.com/v1
 kind: IBMSecurityVerifyAccess
-metadata:
-  name: ibmsecurityverifyaccess-sample
-spec:
-  image: "ibmcom/verify-access-wrp:10.0.3.0"
 
-  size: 1
+metadata:
+  # The name which will be give to the deployment.
+  name: isva-sample
+
+spec:
+  # The name of the image which will be used in the deployment.
+  image: "ibmcom/verify-access-wrp:10.0.2.0"
+
+  # The number of pods which will be started for the deployment.
+  replicas: 1
+
+  # A boolean flag which indicates whether the deployment should be
+  # restarted when a new snapshot is published.
   autoRestart: true
+
+  # A string which is used to indicate the identifier of the snapshot which
+  # should be used by the deployment.  If no identifier is specified a default
+  # snapshot of 'published' will be used.
   snapshotId: published
+
+  # An array of strings which indicate the name of fixpacks which should
+  # be installed in the deployment.  This corresponds to setting the
+  # FIXPACKS environment variable in the deployment itself.
+  #
+  # fixpacks:
+  #   - "test.fixpack"
+
+  # The name of the Verify Access instance which is being deployed.  This value
+  # is only used for WRP and DSC deployments and is ignored for Runtime
+  # deployments.  
+  instance: default
+
+  # The language which will be used for messages which are logged by the
+  # deployment.
+  language: "en_US.utf8"
+
+  # The list of volumes that can be mounted by containers belonging to
+  # the pod.  More info can be found at:
+  #     https://kubernetes.io/docs/concepts/storage/volumes
+  volumes:
+    - name: isva-config
+      emptyDir: {}
+
+  # Any specific container information which is associated with this
+  # container.  The container options include:
+  #    env
+  #    envFrom
+  #    resources
+  #    volumeMounts
+  #    volumeDevices
+  #    livenessProbe
+  #    readinessProbe
+  #    startupProbe
+  #    imagePullPolicy
+  #    securityContext
+  #
+  # Default values will be provided for the probes and security context.
+  #
+  # More info can be found at:
+  #   https://kubernetes.io/docs/tasks/configure-pod-container
+  container:
+    env:
+      - name: TEST_ENV
+        value: TEST_ENV_VALUE
+

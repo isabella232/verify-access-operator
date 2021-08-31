@@ -16,6 +16,7 @@ import (
     "k8s.io/apimachinery/pkg/types"
 
     "context"
+    "strings"
     "sync"
     "time"
 
@@ -160,10 +161,10 @@ func (r *IBMSecurityVerifyAccessReconciler) Reconcile(
                                 "Deployment.Namespace", found.Namespace,
                                 "Deployment.Name", found.Name)
 
-    size := verifyaccess.Spec.Size
+    replicas := verifyaccess.Spec.Replicas
 
-    if *found.Spec.Replicas != size {
-        found.Spec.Replicas = &size
+    if *found.Spec.Replicas != replicas {
+        found.Spec.Replicas = &replicas
 
         err = r.Update(ctx, found)
 
@@ -317,62 +318,211 @@ func (r *IBMSecurityVerifyAccessReconciler) createSecret(
 
 /*
  * The following function is used to return a VerifyAccess Deployment object.
+ *
+ * We map the following IBMSecurityVerifyAccess attributes to a corresponding
+ * attribute in the Deployment structure:
+ *
+ *    IBMSecurityVerifyAccess spec | Deployment spec
+ *    ---------------------------- | ---------------
+ *    replicas                     | replicas
+ *    image                        | template.spec.containers[0].image
+ *    snapshotId                   | template.spec.containers[0].env
+ *    fixpacks                     | template.spec.containers[0].env
+ *    instance                     | template.spec.containers[0].env
+ *    languages                    | template.spec.containers[0].env
+ *    volumes                      | template.spec.volumes
+ *    container                    | template.spec.containers[0]
+ *
+ * We will pre-propulate:
+ *   - metadata
+ *   - spec.selector
+ *   - template.spec.securityContext.runAsUser
+ *   - template.spec.securityContext.runAsNonRoot
+ *   - template.spec.containers[0].name
+ *   - template.spec.containers[0].ports
+ *   - template.spec.containers[0].livenessProbe
+ *   - template.spec.containers[0].readinessProbe
+ *   - template.spec.containers[0].startupProbe
+ *   - template.spec.containers[0].env (for CONFIG_SERVICE_XXX variables)
  */
 
 func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     m *ibmv1.IBMSecurityVerifyAccess) *appsv1.Deployment {
 
-    replicas := m.Spec.Size
-    labels   := map[string]string{
-            "kind":            kindName,
-            "app":             m.Name,
-            "VerifyAccess_cr": m.Name,
+    /*
+     * The labels which are used in our deployment.
+     */
+
+    labels := map[string]string{
+        "kind":            kindName,
+        "app":             m.Name,
+        "VerifyAccess_cr": m.Name,
+    }
+
+    falseVar := false
+    trueVar  := true
+
+    /*
+     * The security context to be used.
+     */
+
+    isvaUser        := int64(6000)
+    securityContext := m.Spec.Container.SecurityContext
+
+    if securityContext == nil {
+        securityContext = &corev1.SecurityContext {
+            RunAsNonRoot: &trueVar,
+            RunAsUser:    &isvaUser,
         }
+    }
+
+    /*
+     * The port which is exported by the deployment.
+     */
+
+    ports := []corev1.ContainerPort {{
+        Name:          "https",
+        ContainerPort: 9443,
+        Protocol:      corev1.ProtocolTCP,
+    }}
+
+    /*
+     * The liveness, readiness and start-up probe definitions.
+     */
+
+    livenessProbe := m.Spec.Container.LivenessProbe
+
+    if livenessProbe == nil {
+        livenessProbe = &corev1.Probe {
+            InitialDelaySeconds: 5,
+            PeriodSeconds:       10,
+            TimeoutSeconds:      2,
+            FailureThreshold:    6,
+            Handler:             corev1.Handler {
+                Exec: &corev1.ExecAction {
+                    Command: []string{
+                        "/sbin/health_check.sh",
+                        "livenessProbe",
+                    },
+                },
+            },
+        }
+    }
+
+    readinessProbe := m.Spec.Container.ReadinessProbe
+
+    if readinessProbe == nil {
+        readinessProbe = &corev1.Probe {
+            InitialDelaySeconds: 5,
+            PeriodSeconds:       10,
+            TimeoutSeconds:      2,
+            FailureThreshold:    2,
+            Handler:             corev1.Handler {
+                Exec: &corev1.ExecAction {
+                    Command: []string{
+                        "/sbin/health_check.sh",
+                    },
+                },
+            },
+        }
+    }
+
+    startupProbe := m.Spec.Container.StartupProbe
+
+    if startupProbe == nil {
+        startupProbe = &corev1.Probe {
+            InitialDelaySeconds: 5,
+            PeriodSeconds:       10,
+            TimeoutSeconds:      2,
+            FailureThreshold:    30,
+            Handler:             corev1.Handler {
+                Exec: &corev1.ExecAction {
+                    Command: []string{
+                        "/sbin/health_check.sh",
+                        "startupProbe",
+                    },
+                },
+            },
+        }
+    }
 
     /*
      * Set up the environment variables which are used to access the
      * embedded snapshot manager.
      */
 
-    notOptional := false
+    maxEnv      := 7
+    env         := make([]corev1.EnvVar, 0, maxEnv)
 
-    env := []corev1.EnvVar{
-        {
-            Name: "CONFIG_SERVICE_URL",
-            ValueFrom: &corev1.EnvVarSource{
-                SecretKeyRef: &corev1.SecretKeySelector{
-                    LocalObjectReference: corev1.LocalObjectReference{
-                        Name: operatorName,
-                    },
-                    Key: urlFieldName,
-                    Optional: &notOptional,
+    env = append(env, corev1.EnvVar {
+        Name: "CONFIG_SERVICE_URL",
+        ValueFrom: &corev1.EnvVarSource{
+            SecretKeyRef: &corev1.SecretKeySelector{
+                LocalObjectReference: corev1.LocalObjectReference{
+                    Name: operatorName,
                 },
+                Key: urlFieldName,
+                Optional: &falseVar,
             },
         },
-        {
-            Name: "CONFIG_SERVICE_USER_NAME",
-            ValueFrom: &corev1.EnvVarSource{
-                SecretKeyRef: &corev1.SecretKeySelector{
-                    LocalObjectReference: corev1.LocalObjectReference{
-                        Name: operatorName,
-                    },
-                    Key: userFieldName,
-                    Optional: &notOptional,
+    })
+
+    env = append(env, corev1.EnvVar {
+        Name: "CONFIG_SERVICE_USER_NAME",
+        ValueFrom: &corev1.EnvVarSource{
+            SecretKeyRef: &corev1.SecretKeySelector{
+                LocalObjectReference: corev1.LocalObjectReference{
+                    Name: operatorName,
                 },
+                Key: userFieldName,
+                Optional: &falseVar,
             },
         },
-        {
-            Name: "CONFIG_SERVICE_USER_PWD",
-            ValueFrom: &corev1.EnvVarSource{
-                SecretKeyRef: &corev1.SecretKeySelector{
-                    LocalObjectReference: corev1.LocalObjectReference{
-                        Name: operatorName,
-                    },
-                    Key: roPwdFieldName,
-                    Optional: &notOptional,
+    })
+
+    env = append(env, corev1.EnvVar {
+        Name: "CONFIG_SERVICE_USER_PWD",
+        ValueFrom: &corev1.EnvVarSource{
+            SecretKeyRef: &corev1.SecretKeySelector{
+                LocalObjectReference: corev1.LocalObjectReference{
+                    Name: operatorName,
                 },
+                Key: roPwdFieldName,
+                Optional: &falseVar,
             },
         },
+    })
+
+    /*
+     * Add the rest of the environment variables (if specified).
+     */
+
+    if m.Spec.SnapshotId != "" {
+        env = append(env, corev1.EnvVar {
+            Name: "SNAPSHOT_ID",
+            Value: m.Spec.SnapshotId,
+        })
+    }
+
+    if len(m.Spec.Fixpacks) > 0 {
+        env = append(env, corev1.EnvVar {
+            Name: "FIXPACKS",
+            Value: strings.Join(m.Spec.Fixpacks,","),
+        })
+    }
+
+    if m.Spec.Instance != "" {
+        env = append(env, corev1.EnvVar {
+            Name: "INSTANCE",
+            Value: m.Spec.Instance,
+        })
+    }
+
+    if m.Spec.Language != "" {
+        env = append(env, corev1.EnvVar {
+            Name: "LANG",
+            Value: string(m.Spec.Language),
+        })
     }
 
     /*
@@ -386,7 +536,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
             Labels:    labels,
         },
         Spec: appsv1.DeploymentSpec{
-            Replicas: &replicas,
+            Replicas: &m.Spec.Replicas,
             Selector: &metav1.LabelSelector{
                 MatchLabels: labels,
             },
@@ -395,15 +545,29 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     Labels: labels,
                 },
                 Spec: corev1.PodSpec{
+                    Volumes: m.Spec.Volumes,
                     Containers: []corev1.Container{{
-                        Image: m.Spec.Image,
-                        Name:  m.Name,
-                        Env:   env,
+                        Env:             m.Spec.Container.Env,
+                        EnvFrom:         m.Spec.Container.EnvFrom,
+                        Image:           m.Spec.Image,
+                        ImagePullPolicy: m.Spec.Container.ImagePullPolicy,
+                        LivenessProbe:   livenessProbe,
+                        Name:            m.Name,
+                        Ports:           ports,
+                        ReadinessProbe:  readinessProbe,
+                        Resources:       m.Spec.Container.Resources,
+                        SecurityContext: securityContext,
+                        StartupProbe:    startupProbe,
+                        VolumeDevices:   m.Spec.Container.VolumeDevices,
+                        VolumeMounts:    m.Spec.Container.VolumeMounts,
                     }},
                 },
             },
         },
     }
+
+    dep.Spec.Template.Spec.Containers[0].Env = append(
+                dep.Spec.Template.Spec.Containers[0].Env, env...)
 
     // Set the VerifyAccess instance as the owner and controller
     ctrl.SetControllerReference(m, dep, r.Scheme)
