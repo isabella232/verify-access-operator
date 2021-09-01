@@ -134,12 +134,18 @@ jobs:
           make bundle-zip
           cp bundle.zip ../
 
+          echo "make bundle-yaml....."
+          make bundle-yaml
+          cp bundle.yaml ../
+
       # Publish the release, if the release has been tagged.
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: bundle.zip
+          files: |
+            bundle.zip
+            bundle.yaml
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
