@@ -1,5 +1,26 @@
 # IBM Security Verify Access Operator
 
+## Table of Contents:
+
+  * [Overview](#overview)
+  * [Installation](#installation)
+    + [OperatorHub.io and the Operator Lifecycle Manager](#operatorhubio-and-the-operator-lifecycle-manager)
+      - [Installing](#installing)
+    + [Manual Installation](#manual-installation)
+      - [Custom Resource Definition](#custom-resource-definition)
+      - [Controller Application](#controller-application)
+        * [Controller Service Account](#controller-service-account)
+        * [Controller Role Binding](#controller-role-binding)
+        * [Controller Deployment](#controller-deployment)
+  * [Usage](#usage)
+    + [Secrets](#secrets)
+    + [Snapshot Management](#snapshot-management)
+      - [GET](#get)
+      - [POST](#post)
+      - [DELETE](#delete)
+    + [Partitioning the Cluster](#partitioning-the-cluster)
+    + [Deploying a Container](#deploying-a-container)
+
 ## Overview
 
 In a world of highly fragmented access management environments, [IBM Security Verify Access](https://www.ibm.com/au-en/products/verify-access) helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.
