@@ -20,6 +20,8 @@
       - [DELETE](#delete)
     + [Partitioning the Cluster](#partitioning-the-cluster)
     + [Deploying a Container](#deploying-a-container)
+      - [Container Defaults](#container-defaults)
+    + [Creating a Service](#creating-a-service)
 
 ## Overview
 
@@ -346,6 +348,8 @@ The following command can be used to create the deployment from this file:
 kubectl apply -f isva-wrp.yaml
 ```
 
+#### Container Defaults
+
 The following labels will be automatically created in the worker container deployment:
 
 |Label|Value
@@ -419,6 +423,8 @@ spec:
 
 
 ```
+
+### Creating a Service
 
 When creating a service for the deployed worker container the selector for the service must match the selector for the deployment, most commonly achieved by specifying the 'app' label.  
 
