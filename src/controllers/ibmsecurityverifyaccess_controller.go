@@ -394,10 +394,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
 
     if livenessProbe == nil {
         livenessProbe = &corev1.Probe {
-            InitialDelaySeconds: 5,
-            PeriodSeconds:       10,
-            TimeoutSeconds:      2,
-            FailureThreshold:    6,
+            TimeoutSeconds:      3,
             Handler:             corev1.Handler {
                 Exec: &corev1.ExecAction {
                     Command: []string{
@@ -413,10 +410,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
 
     if readinessProbe == nil {
         readinessProbe = &corev1.Probe {
-            InitialDelaySeconds: 5,
-            PeriodSeconds:       10,
-            TimeoutSeconds:      2,
-            FailureThreshold:    2,
+            TimeoutSeconds:      3,
             Handler:             corev1.Handler {
                 Exec: &corev1.ExecAction {
                     Command: []string{
@@ -432,8 +426,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
     if startupProbe == nil {
         startupProbe = &corev1.Probe {
             InitialDelaySeconds: 5,
-            PeriodSeconds:       10,
-            TimeoutSeconds:      2,
+            TimeoutSeconds:      20,
             FailureThreshold:    30,
             Handler:             corev1.Handler {
                 Exec: &corev1.ExecAction {
