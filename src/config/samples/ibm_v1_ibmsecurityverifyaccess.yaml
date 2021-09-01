@@ -2,7 +2,7 @@ apiVersion: ibm.com/v1
 kind: IBMSecurityVerifyAccess
 
 metadata:
-  # The name which will be give to the deployment.
+  # The name which will be given to the deployment.
   name: isva-sample
 
 spec:
