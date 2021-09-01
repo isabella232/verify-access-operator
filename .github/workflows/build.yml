@@ -145,6 +145,7 @@ jobs:
         #if: startsWith(github.ref, 'refs/tags/')
         if: (!startsWith(github.ref, 'refs/tags/'))
         with:
+          name: "Test Release"
           files: |
             bundle.zip
             bundle.yaml
