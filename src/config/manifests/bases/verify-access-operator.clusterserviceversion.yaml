@@ -26,7 +26,24 @@ spec:
       name: ibmsecurityverifyaccesses.ibm.com
       version: v1
   maturity: stable
-  description: In a world of highly fragmented access management environments, IBM Security Verify Access helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.  The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment.
+  description: >+
+    In a world of highly fragmented access management environments, [IBM Security Verify Access](https://www.ibm.com/au-en/products/verify-access) helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.
+
+    
+    The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment, namely:
+
+    * [Web Reverse Proxy](https://hub.docker.com/r/ibmcom/verify-access-wrp)
+
+    * [Runtime](https://hub.docker.com/r/ibmcom/verify-access-runtime)
+
+    * [Distributed Session Cache](https://hub.docker.com/r/ibmcom/verify-access-dsc)
+
+    
+    The operator will manage the deployment of these lightweight IBM Security Verify Access worker containers, and also control the rolling restart of these containers when a configuration snapshot is updated.
+
+
+    See the project [Readme](https://github.com/IBM-Security/verify-access-operator/blob/master/README.md) for further information and details.
+
   displayName: IBM Security Verify Access Operator
   icon:
   - base64data: ""
@@ -54,7 +71,7 @@ spec:
     url: https://www.ibm.com/docs/en/sva
   maintainers:
   - email: isamdev@au1.ibm.com
-    name: Verify Access Development
+    name: Verify Access Development Team
   provider:
     name: IBM
     url: https://www.ibm.com
