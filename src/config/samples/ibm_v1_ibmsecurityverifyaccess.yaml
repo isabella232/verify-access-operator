@@ -10,16 +10,16 @@ spec:
   image: "ibmcom/verify-access-wrp:10.0.2.0"
 
   # The number of pods which will be started for the deployment.
-  replicas: 1
+  # replicas: 1
 
   # A boolean flag which indicates whether the deployment should be
   # restarted when a new snapshot is published.
-  autoRestart: true
+  # autoRestart: true
 
   # A string which is used to indicate the identifier of the snapshot which
   # should be used by the deployment.  If no identifier is specified a default
   # snapshot of 'published' will be used.
-  snapshotId: published
+  # snapshotId: published
 
   # An array of strings which indicate the name of fixpacks which should
   # be installed in the deployment.  This corresponds to setting the
@@ -35,14 +35,14 @@ spec:
 
   # The language which will be used for messages which are logged by the
   # deployment.
-  language: "en_US.utf8"
+  # language: "en_US.utf8"
 
   # The list of volumes that can be mounted by containers belonging to
   # the pod.  More info can be found at:
   #     https://kubernetes.io/docs/concepts/storage/volumes
-  volumes:
-    - name: isva-config
-      emptyDir: {}
+  # volumes:
+  #   - name: isva-config
+  #     emptyDir: {}
 
   # Any specific container information which is associated with this
   # container.  The container options include:
@@ -61,8 +61,9 @@ spec:
   #
   # More info can be found at:
   #   https://kubernetes.io/docs/tasks/configure-pod-container
-  container:
-    env:
-      - name: TEST_ENV
-        value: TEST_ENV_VALUE
+  #
+  # container:
+  #   env:
+  #     - name: TEST_ENV
+  #       value: TEST_ENV_VALUE
 
