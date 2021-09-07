@@ -147,10 +147,20 @@ curl -k -u $USER:$RO_PWD -O $URL/snapshots/isva_10.0.2.0_published.snapshot
 
 #### POST
 
-The POST method can be used to upload a new snapshot to the snapshot manager.  An example curl command which can be used to upload a new snapshot is as follows:
+The POST method can be used to upload a new snapshot to the snapshot manager. An optional `modified` query argument can be added to the URL as a comma-separated list of services which should be restarted as a result of the update.  If the `modified` query string argument is not present all managed deployments will be restarted. 
+
+The service names used in the `modified` query string argument is as follows:
+
+|Service|Value
+|-------|-----
+|Distributed Session Cache | dsc:\<dsc number>, for example: `dsc:1`
+|Runtime | runtime
+|Web Reverse Proxy | wrp:\<instance name>, for example: `wrp:default`
+
+An example curl command which can be used to upload a new snapshot is as follows:
 
 ```shell
-curl -k -u $USER:$RW_PWD -F 'file=@/var/shared/snapshots/isva_10.0.2.0_published.snapshot' $URL/snapshots/isva_10.0.2.0_published.snapshot
+curl -k -u $USER:$RW_PWD -F 'file=@/var/shared/snapshots/isva_10.0.2.0_published.snapshot' $URL/snapshots/isva_10.0.2.0_published.snapshot?modified=wrp:default,runtime
 ```
 
 #### DELETE
