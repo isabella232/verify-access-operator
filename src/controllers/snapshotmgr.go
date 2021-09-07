@@ -68,9 +68,19 @@ type SnapshotMgr struct {
  * will occur whenever a new snapshot is uploaded.
  */
 
-func (mgr *SnapshotMgr) rollingRestart(path string) {
+func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
 
     mgr.log.V(9).Info("Entering a function", "Function", "rollingRestart")
+
+    /*
+     * Work out the list of modified services.
+     */
+
+    var services []string
+
+    if len(modified) > 0 {
+        services = strings.Split(strings.Replace(modified, ":", "-", -1), ",")
+    }
 
     /*
      * Grab a lock to ensure that we don't process multiple simultaneous
@@ -144,18 +154,60 @@ func (mgr *SnapshotMgr) rollingRestart(path string) {
     }
 
     /*
+     * Restart the deployments.
+     */
+
+    if len(services) > 0 {
+        for _, service := range services {
+            mgr.restartDeployments(
+                        path,
+                        snapshotId,
+                        fmt.Sprintf("kind=%s, service=%s", kindName, service),
+                        appsV1Client,
+                        rtClient)
+        }
+    } else {
+        mgr.restartDeployments(
+                        path,
+                        snapshotId,
+                        fmt.Sprintf("kind=%s", kindName),
+                        appsV1Client,
+                        rtClient)
+    }
+
+    /*
+     * Finished, so we can release our lock.
+     */
+
+    mgr.mutex.Unlock()
+}
+
+/*****************************************************************************/
+
+/*
+ * This function is used to trigger a rolling restart of the specified 
+ * deployments.  
+ */
+
+func (mgr *SnapshotMgr) restartDeployments(
+                                path         string,
+                                snapshotId   string,
+                                labels       string,
+                                appsV1Client *appsV1.AppsV1Client,
+                                rtClient     client.Client) {
+
+    /*
      * Retrieve the existing deployments for our operator.
      */
 
     deployments, err := appsV1Client.Deployments("").List(
                     context.TODO(),
                     metaV1.ListOptions{
-                        LabelSelector: fmt.Sprintf("kind=%s", kindName),
+                        LabelSelector: labels,
                     })
+
     if err != nil {
         mgr.log.Error(err, "Failed to list deployments")
-
-        mgr.mutex.Unlock()
 
         return
     }
@@ -324,8 +376,6 @@ func (mgr *SnapshotMgr) rollingRestart(path string) {
 
         mgr.log.V(5).Info("Successfully updated the deployment")
     }
-
-    mgr.mutex.Unlock()
 }
 
 /*****************************************************************************/
@@ -478,7 +528,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * thread.
              */
 
-            go mgr.rollingRestart(filepath.Clean(r.URL.Path))
+            go mgr.rollingRestart(filepath.Clean(r.URL.Path),
+                                    r.URL.Query().Get("modified"))
 
             /*
              *  Return a '201 Created' response.

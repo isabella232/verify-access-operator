@@ -16,6 +16,7 @@ import (
     "k8s.io/apimachinery/pkg/types"
 
     "context"
+    "fmt"
     "strings"
     "sync"
     "time"
@@ -348,6 +349,29 @@ func (r *IBMSecurityVerifyAccessReconciler) createSecret(
 
 func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     m *ibmv1.IBMSecurityVerifyAccess) *appsv1.Deployment {
+    /*
+     * Work out the name of the service.  We determine this from the name of
+     * the image, and the value of the INSTANCE environment variable.
+     */
+
+    serviceName    := "unknown"
+    imageComponent := strings.Split(m.Spec.Image, ":")[0]
+
+    if strings.HasSuffix(imageComponent, "wrp") {
+        if m.Spec.Instance != "" {
+            serviceName = fmt.Sprintf("wrp-%s", m.Spec.Instance)
+        } else {
+            serviceName = "wrp-default"
+        }
+    } else if strings.HasSuffix(imageComponent, "runtime") {
+        serviceName = "runtime"
+    } else if strings.HasSuffix(imageComponent, "dsc") {
+        if m.Spec.Instance != "" {
+            serviceName = fmt.Sprintf("dsc-%s", m.Spec.Instance)
+        } else {
+            serviceName = "dsc-1"
+        }
+    }
 
     /*
      * The labels which are used in our deployment.
@@ -357,6 +381,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
         "kind":            kindName,
         "app":             m.Name,
         "VerifyAccess_cr": m.Name,
+        "service":         serviceName,
     }
 
     falseVar := false
