@@ -234,6 +234,14 @@ spec:
     - name: isva-config
       emptyDir: {}
 
+  # The list of references to secrets in the same namespace to use for the
+  # pulling of the Verify Access image.
+  # imagePullSecrets:
+  #   - name:my-secret
+
+  # The name of the ServiceAccount to use to run the managed pod.
+  # serviceAccountName: "default"
+
   # Any specific container information which is associated with this
   # container.  The container options include:
   #    env
