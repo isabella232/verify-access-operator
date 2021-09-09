@@ -333,6 +333,8 @@ func (r *IBMSecurityVerifyAccessReconciler) createSecret(
  *    instance                     | template.spec.containers[0].env
  *    languages                    | template.spec.containers[0].env
  *    volumes                      | template.spec.volumes
+ *    imagePullSecrets             | template.spec.imagePullSecrets
+ *    serviceAccountName           | template.spec.serviceAccountName
  *    container                    | template.spec.containers[0]
  *
  * We will pre-propulate:
@@ -564,8 +566,10 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                     Labels: labels,
                 },
                 Spec: corev1.PodSpec{
-                    Volumes: m.Spec.Volumes,
-                    Containers: []corev1.Container{{
+                    Volumes:            m.Spec.Volumes,
+                    ImagePullSecrets:   m.Spec.ImagePullSecrets,
+                    ServiceAccountName: m.Spec.ServiceAccountName,
+                    Containers:         []corev1.Container{{
                         Env:             m.Spec.Container.Env,
                         EnvFrom:         m.Spec.Container.EnvFrom,
                         Image:           m.Spec.Image,
