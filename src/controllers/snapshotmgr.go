@@ -50,15 +50,16 @@ import (
 /*****************************************************************************/
 
 type SnapshotMgr struct {
-    config    *rest.Config
-    scheme    *runtime.Scheme
+    config       *rest.Config
+    scheme       *runtime.Scheme
 
-    log       logr.Logger
+    log          logr.Logger
 
-    server    *http.Server
-    creds     map[string]string
+    server       *http.Server
+    creds        map[string]string
 
-    mutex     *sync.Mutex
+    restartMutex *sync.Mutex
+    webMutex     *sync.RWMutex
 }
 
 /*****************************************************************************/
@@ -87,7 +88,7 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
      * restarts.
      */
 
-    mgr.mutex.Lock()
+    mgr.restartMutex.Lock()
 
     /*
      * Work out the snapshot identifier, if a snapshot has been provided.
@@ -107,6 +108,8 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
         parts := strings.Split(snapshotName, "_")
 
         if len(parts) != 3 {
+            mgr.restartMutex.Unlock()
+
             mgr.log.Info("No deployments will be restarted as the " +
                     "snapshot name is invalid", "Snapshot.Name", snapshotName);
 
@@ -116,6 +119,8 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
         parts = strings.Split(parts[2], ".")
 
         if len(parts) != 2 {
+            mgr.restartMutex.Unlock()
+
             mgr.log.Info("No deployments will be restarted as the " +
                     "snapshot name is invalid", "Snapshot.Name", snapshotName);
 
@@ -133,9 +138,9 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
 
     appsV1Client, err := appsV1.NewForConfig(mgr.config)
     if err != nil {
-        mgr.log.Error(err, "Failed to create a new K8S Application client")
+        mgr.restartMutex.Unlock()
 
-        mgr.mutex.Unlock()
+        mgr.log.Error(err, "Failed to create a new K8S Application client")
 
         return
     }
@@ -146,9 +151,9 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
                                 })
 
     if err != nil {
-        mgr.log.Error(err, "Failed to create a new controller runtime client")
+        mgr.restartMutex.Unlock()
 
-        mgr.mutex.Unlock()
+        mgr.log.Error(err, "Failed to create a new controller runtime client")
 
         return
     }
@@ -179,7 +184,7 @@ func (mgr *SnapshotMgr) rollingRestart(path string, modified string) {
      * Finished, so we can release our lock.
      */
 
-    mgr.mutex.Unlock()
+    mgr.restartMutex.Unlock()
 }
 
 /*****************************************************************************/
@@ -369,8 +374,6 @@ func (mgr *SnapshotMgr) restartDeployments(
             mgr.log.Error(err, "Failed to update the deployment",
                             "Deployment.Name", deployment.Name)
 
-            mgr.mutex.Unlock()
-
             return
         }
 
@@ -462,7 +465,9 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
         case "GET":
             mgr.log.Info("Processing a GET", "Path", r.URL.Path)
 
+            mgr.webMutex.RLock()
             http.ServeFile(w, r, fileName)
+            mgr.webMutex.RUnlock()
 
         /*
          * For a POST we want to save the supplied file.
@@ -495,9 +500,13 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * Create the file which is to be uploaded.
              */
 
+            mgr.webMutex.Lock()
+
             dst, err := os.Create(fileName)
 
             if err != nil {
+                mgr.webMutex.Unlock()
+
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
                 mgr.log.V(5).Error(err, "Failed to create the file",
@@ -515,6 +524,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
             _, err = io.Copy(dst, file)
 
             if err != nil {
+                mgr.webMutex.Unlock()
+
                 http.Error(w, err.Error(), http.StatusInternalServerError)
 
                 mgr.log.V(5).Error(err, "Failed to copy the file",
@@ -522,6 +533,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 
                 return
             }
+
+            mgr.webMutex.Unlock()
 
             /*
              * Request a restart of all running containers in a separate
@@ -548,7 +561,9 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
         case "DELETE":
             mgr.log.Info("Processing a DELETE", "Path", r.URL.Path)
 
+            mgr.webMutex.Lock()
             err := os.Remove(fileName)
+            mgr.webMutex.Unlock()
 
             var rspCode int
             var rspText string
@@ -892,7 +907,8 @@ func (mgr *SnapshotMgr) initialize() (err error) {
         return
     }
 
-    mgr.mutex = &sync.Mutex{}
+    mgr.restartMutex = &sync.Mutex{}
+    mgr.webMutex     = &sync.RWMutex{}
 
     /*
      * Create the directories which will store our data.
@@ -918,7 +934,7 @@ func (mgr *SnapshotMgr) initialize() (err error) {
 
     }
 
-    return 
+    return
 }
 
 /*****************************************************************************/
