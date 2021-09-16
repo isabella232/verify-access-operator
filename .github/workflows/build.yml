@@ -111,11 +111,7 @@ jobs:
               export IMAGE_TAG_BASE=${ARTIFACTORY_SERVER}/verify-access-operator
               export VERSION=0.0.0
 
-              echo $GITHUB_REF
-              echo "environment"
-              env
-
-              if [ $GITHUB_REF = "master" ] ; then
+              if [ $GITHUB_REF = "refs/heads/master" ] ; then
                 export DO_PUSH=1
               else
                 export DO_PUSH=0
