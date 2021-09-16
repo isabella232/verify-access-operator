@@ -105,10 +105,21 @@ jobs:
             refs/tags/v*)
               export IMAGE_TAG_BASE=ibmcom/verify-access-operator
               export VERSION=`echo $GITHUB_REF | sed "s|refs/tags/v||g"`
+              export DO_PUSH=1
               ;;
             *)
               export IMAGE_TAG_BASE=${ARTIFACTORY_SERVER}/verify-access-operator
               export VERSION=0.0.0
+
+              echo $GITHUB_REF
+              echo "environment"
+              env
+
+              if [ $GITHUB_REF = "master" ] ; then
+                export DO_PUSH=1
+              else
+                export DO_PUSH=0
+              fi
               ;;
           esac
 
@@ -124,11 +135,13 @@ jobs:
           echo "make bundle-build....."
           make bundle-build
 
-          echo "make docker-push....."
-          make docker-push
+          if [ $DO_PUSH -eq 1 ] ; then
+            echo "make docker-push....."
+            make docker-push
 
-          echo "make bundle-push....."
-          make bundle-push
+            echo "make bundle-push....."
+            make bundle-push
+          fi
 
           echo "make bundle-zip....."
           make bundle-zip
