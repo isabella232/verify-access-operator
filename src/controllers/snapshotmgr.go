@@ -453,6 +453,25 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
     fileName := filepath.Join(dataRoot, r.URL.Path)
 
     /*
+     * Work out the client of the request.
+     */
+
+
+    client := r.URL.Query().Get("client")
+
+    if len(client) == 0 {
+        client = r.Header.Get("X-Forwarded-For")
+
+        if len(client) == 0 {
+            client = r.RemoteAddr
+
+            if len(client) == 0 {
+                client = "unknown"
+            }
+        }
+    }
+
+    /*
      * Process the request based on the specified method.
      */
 
@@ -463,7 +482,7 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "GET":
-            mgr.log.Info("Processing a GET", "Path", r.URL.Path)
+            mgr.log.Info("Processing a GET", "Path", r.URL.Path, "Client", client)
 
             mgr.webMutex.RLock()
             http.ServeFile(w, r, fileName)
@@ -474,7 +493,21 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "POST":
-            mgr.log.Info("Processing a POST", "Path", r.URL.Path)
+            /*
+             * Work out some of the information associated with the request and
+             * then log the request.
+             */
+
+            modified := r.URL.Query().Get("modified")
+
+            if len(modified) == 0 {
+                modified = "all"
+            }
+
+            mgr.log.Info("Processing a POST",
+                            "Path",     r.URL.Path,
+                            "Modified", modified,
+                            "Client",   client)
 
             /*
              * Retrieve the file parameter from the form.
@@ -541,8 +574,7 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * thread.
              */
 
-            go mgr.rollingRestart(filepath.Clean(r.URL.Path),
-                                    r.URL.Query().Get("modified"))
+            go mgr.rollingRestart(filepath.Clean(r.URL.Path), modified)
 
             /*
              *  Return a '201 Created' response.
@@ -559,7 +591,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
          */
 
         case "DELETE":
-            mgr.log.Info("Processing a DELETE", "Path", r.URL.Path)
+            mgr.log.Info("Processing a DELETE",
+                            "Path", r.URL.Path, "Client", client)
 
             mgr.webMutex.Lock()
             err := os.Remove(fileName)
@@ -595,7 +628,8 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
 
 	default:
             mgr.log.V(5).Info("Received a request with an invalid method",
-                                "Path", r.URL.Path,
+                                "Path",   r.URL.Path,
+                                "Client", client,
                                 "Method", r.Method)
 
             http.Error(w,
