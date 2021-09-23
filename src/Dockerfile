@@ -10,7 +10,7 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Create the data directory.
-RUN mkdir /data && mkdir /data/snapshots && mkdir /data/fixpacks
+RUN mkdir /data && mkdir /data/snapshots && mkdir /data/fixpacks && chmod -R 777 /data
 
 # Copy the go source
 COPY main.go main.go

@@ -1,11 +1,11 @@
 # IBM Security Verify Access Operator
-
-
   * [Overview](#overview)
   * [Installation](#installation)
-    + [OperatorHub.io and the Operator Lifecycle Manager](#operatorhubio-and-the-operator-lifecycle-manager)
-      - [Installing](#installing)
-    + [Manual Installation](#manual-installation)
+    + [RedHat OpenShift Environment](#redhat-openshift-environment)
+    + [Standard Kubernetes Environment](#standard-kubernetes-environment)
+      - [OperatorHub.io and the Operator Lifecycle Manager](#operatorhubio-and-the-operator-lifecycle-manager)
+        * [Installing](#installing)
+      - [Manual Installation](#manual-installation)
   * [Usage](#usage)
     + [Secrets](#secrets)
     + [Snapshot Management](#snapshot-management)
@@ -45,15 +45,21 @@ Some points to note about the figure:
 
 ## Installation
 
-The operator can be installed and managed manually, or it can be installed and managed using the [Operator Lifecycle Manager](https://github.com/operator-framework/operator-lifecycle-manager) and [OperatorHub.io](https://operatorhub.io/). 
+### RedHat OpenShift Environment
 
-### OperatorHub.io and the Operator Lifecycle Manager
+The IBM Security Verify Access Operator is available from the RedHat community operator catalog.  Information on how to install a community operator in OpenShift can be obtained from the official RedHat OpenShift documentation.
+
+### Standard Kubernetes Environment
+
+In a standard (i.e. non-OpenShift) Kubernetes environment the operator can be installed and managed manually, or it can be installed and managed using the [Operator Lifecycle Manager](https://github.com/operator-framework/operator-lifecycle-manager) and [OperatorHub.io](https://operatorhub.io/). 
+
+#### OperatorHub.io and the Operator Lifecycle Manager
 
 Kubernetes operators are very useful tools that provide lifecycle management capabilities for many varying custom objects in Kubernetes. [OperatorHub.io](https://operatorhub.io/) provides a single place where Kubernetes administrators or developers can go to find existing operators that may provide the functionality that they require. 
 
 The information provided by [OperatorHub.io](https://operatorhub.io/) allows the Operator Lifecycle Manager (OLM) to manage the operator throughout its complete lifecycle. This includes the initial installation and subscription to OperatorHub.io such that updates to the operator can be performed automatically.
 
-#### Installing
+##### Installing
 
 To install the IBM Security Verify Access operator from OperatorHub.io:
 
@@ -72,7 +78,7 @@ verify-access-operator.v21.10.0   IBM Security Verify Access Operator   21.10.0 
 
 At this point the Operator Lifecycle Manager has been installed into the Kubernetes cluster, the IBM Security Verify Access operator has been deployed and a subscription has been created that will monitor for any updates to the operator on OperatorHub.io. The IBM Security Verify Access operator is now operational and any subsequent custom resources of the kind "IBMSecurityVerifyAccess" will result in the operator being invoked to create the deployment.
 
-### Manual Installation
+#### Manual Installation
 
 The IBM Security Verify Access operator in essence is made up of 2 components:
 
