@@ -1,2 +1,4 @@
+# Copyright contributors to the IBM Security Verify Access Operator project
+
 resources:
 - monitor.yaml

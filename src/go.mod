@@ -1,3 +1,5 @@
+// Copyright contributors to the IBM Security Verify Access Operator project
+
 module github.com/ibm-security/verify-access-operator
 
 go 1.15

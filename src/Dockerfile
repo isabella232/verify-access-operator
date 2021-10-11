@@ -1,3 +1,5 @@
+# Copyright contributors to the IBM Security Verify Access Operator project
+
 # Build the manager binary
 FROM golang:1.15 as builder
 

@@ -1,3 +1,5 @@
+# Copyright contributors to the IBM Security Verify Access Operator project
+
 FROM scratch
 
 # Core bundle labels.
