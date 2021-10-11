@@ -144,11 +144,21 @@ rm -rf $$TMP_DIR ;\
 }
 endef
 
+# A change has been made to the 'bundle' target so that the generation of 
+# the bundle manifests no longer replaces our existing cluster service version
+# file.  Without this change we were losing some definitions from the
+# CSV file which are required for the scorecard tests, e.g. 'owned.resources'.
+CSV_FILE = config/manifests/bases/verify-access-operator.clusterserviceversion.yaml
+
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
-	operator-sdk generate kustomize manifests -q
+	cp $(CSV_FILE) $(CSV_FILE).bak
+	operator-sdk generate kustomize manifests -q 
+	cp $(CSV_FILE).bak $(CSV_FILE)
+	rm -f $(CSV_FILE).bak 
 	cd config/manager && $(KUSTOMIZE) edit set image controller=$(IMG)
 	$(KUSTOMIZE) build config/manifests | sed "s|0.0.0|$(VERSION)|g" | sed "s|--date--|`date`|g" | operator-sdk generate bundle -q --overwrite --version $(VERSION) $(BUNDLE_METADATA_OPTS)
+	echo "  com.redhat.openshift.versions: \"v4.6-v4.8\"" >> bundle/metadata/annotations.yaml
 	operator-sdk bundle validate ./bundle
 
 .PHONY: bundle-build
