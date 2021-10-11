@@ -26,7 +26,7 @@ After the release has been created the GitHub actions workflow ([https://github.
 
 # Publishing to OperatorHub.io
 
-Once a new GitHub release has been generated the updated operator bundle needs to be published to OperatorHub.io.  Information on how to do this can be found at the following URL: [https://operatorhub.io/contribute](https://operatorhub.io/contribute).
+Once a new GitHub release has been generated the updated operator bundle needs to be published to OperatorHub.io.  Information on how to do this can be found at the following URL: [https://k8s-operatorhub.github.io/community-operators/](https://k8s-operatorhub.github.io/community-operators/).
 
 At a high level you need to (taken from: [https://k8s-operatorhub.github.io/community-operators/contributing-via-pr/]()):
 
