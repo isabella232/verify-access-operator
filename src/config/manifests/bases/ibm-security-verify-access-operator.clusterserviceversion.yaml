@@ -16,7 +16,7 @@ metadata:
     # Prevent cluster upgrades to OpenShift Version 4.9 when this 
     # bundle is installed on the cluster
     "olm.properties": '[{"type": "olm.maxOpenShiftVersion", "value": "4.8"}]'
-  name: verify-access-operator.v0000.0000.0000
+  name: ibm-security-verify-access-operator.v0000.0000.0000
   namespace: placeholder
 spec:
   apiservicedefinitions: {}

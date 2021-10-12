@@ -150,7 +150,7 @@ endef
 # which are required for the scorecard tests (e.g. 'owned.resources') to be
 # removed from the CSV file.  We need to manually add these definitions back
 # into the file using sed.
-CSV_FILE = config/manifests/bases/verify-access-operator.clusterserviceversion.yaml
+CSV_FILE = config/manifests/bases/ibm-security-verify-access-operator.clusterserviceversion.yaml
 
 .PHONY: bundle
 bundle: manifests kustomize ## Generate bundle manifests and metadata, then validate generated files.
