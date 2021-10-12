@@ -22,9 +22,6 @@ testbin/*
 # Additional generated files to skip.
 api/v1/zz_generated.deepcopy.go
 bundle/*
-config/crd/bases/ibm.com_ibmsecurityverifyaccesses.yaml
-config/rbac/role.yaml
-config/manifests/kustomization.yaml
 
 # editor and IDE paraphernalia
 .idea
