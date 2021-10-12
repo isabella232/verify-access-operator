@@ -1,0 +1,31 @@
+      resources:
+      - kind: Deployment
+        name: ''
+        version: v1
+      specDescriptors:
+      - description: The name of the IBM Security Verify Access image to be used.
+        displayName: Image
+        path: image
+        x-descriptors:
+          - 'urn:alm:descriptor:com.tectonic.ui:text'
+      - description: The name of the Verify Access instance which is being deployed.  This value is only used for WRP and DSC deployments and is ignored for Runtime deployments.  
+        displayName: Instance
+        path: instance
+        x-descriptors:
+          - 'urn:alm:descriptor:com.tectonic.ui:text'
+      - description: The number of pods which will be started for the deployment.
+        displayName: Replicas
+        path: replicas
+        x-descriptors:
+          - 'urn:alm:descriptor:com.tectonic.ui:number'
+      - description:  A boolean flag which indicates whether the deployment should be automatically restarted when a new snapshot is published.
+        displayName: Auto Restart
+        path: autoRestart
+        x-descriptors:
+          - 'urn:alm:descriptor:com.tectonic.ui:booleanSwitch'
+      statusDescriptors:
+        - description: The list of status conditions associated with the custom resource.
+          displayName: Conditions
+          path: conditions
+          x-descriptors:
+            - 'urn:alm:descriptor:io.kubernetes.conditions'

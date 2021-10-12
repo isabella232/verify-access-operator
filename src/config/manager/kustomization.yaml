@@ -14,5 +14,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: sec-isam-docker-local.artifactory.swg-devops.com/verify-access-operator
-  newTag: 0.0.0
+  newName: controller
+  newTag: latest

@@ -39,7 +39,7 @@ jobs:
       - name: Setup go
         uses: actions/setup-go@v2
         with:
-          go-version: "1.15"
+          go-version: "1.16"
 
       # Set up the GO cache.
       - name: Use go cache
@@ -58,7 +58,11 @@ jobs:
           # Download the operator-sdk.
           export ARCH=amd64
           export OS=$(uname | awk '{print tolower($0)}')
-          export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/v1.7.2
+          export RELEASE_VERSION=$( curl -ksS \
+            https://api.github.com/repos/operator-framework/operator-sdk/releases/latest | 
+                  jq -r '.tag_name' )
+
+          export OPERATOR_SDK_DL_URL=https://github.com/operator-framework/operator-sdk/releases/download/${RELEASE_VERSION}
 
           curl -LO ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
 
