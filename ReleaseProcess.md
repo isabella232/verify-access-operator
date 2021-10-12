@@ -30,17 +30,25 @@ Once a new GitHub release has been generated the updated operator bundle needs t
 
 At a high level you need to (taken from: [https://k8s-operatorhub.github.io/community-operators/contributing-via-pr/]()):
 
-1. Test the operator locally
-2. Fork the [GitHub project](https://github.com/operator-framework/community-operators)
-4. Place the operator in the target directory ([more info](https://k8s-operatorhub.github.io/community-operators/contributing-where-to/])): 
-	- community-operators (Openshift operator) 
-	- upstream-community-operators (Kubernetes operator)
-5. Configure ci.yaml file ([more info](https://k8s-operatorhub.github.io/community-operators/operator-ci-yaml/))
-	- Setup reviewers
-	- Operator versioning strategy
-3. Make a pull request
-	- You must ensure that the comment for the commit contains a signature. See [https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/](https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/) 
-8. Verify tests and fix problems, if possible
-9. Ask for help in the PR in case of problems
+1. Test the operator locally.
+2. Fork the [GitHub project](https://github.com/k8s-operatorhub/community-operators).
+3. Add the operator bundle to the verify-access-operator directory.
+4. Push a 'signed' commit of the changes.  See [https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/](https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/).  The easiest way to sign the commit is to use the `git commit -s -m '<description>'` command to commit the changes.
+5. Contribute the changes back to the main GitHub repository (using the 'Contribute' button in the GitHub console).  This will have the effect of creating a new pull request against the main GitHub repository.
+6. Monitor the 'checks' against the pull request to ensure that all of the automated test cases pass.
+7. Wait for the pull request to be merged.  This will usually happen overnight.
 
+# Publishing to OpenShift Community Catalog
+
+Once a new GitHub release has been generated the updated operator bundle needs to be published to the OpenShift community operator catalog.  Information on how to do this can be found at the following URL: [https://k8s-operatorhub.github.io/community-operators/](https://k8s-operatorhub.github.io/community-operators/).
+
+At a high level you need to (taken from: [https://k8s-operatorhub.github.io/community-operators/contributing-via-pr/]()):
+
+1. Test the operator locally.
+2. Fork the [GitHub project](https://github.com/redhat-openshift-ecosystem/community-operators-prod).
+3. Add the operator bundle to the verify-access-operator directory.
+4. Push a 'signed' commit of the changes.  See [https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/](https://k8s-operatorhub.github.io/community-operators/contributing-prerequisites/).  The easiest way to sign the commit is to use the `git commit -s -m '<description>'` command to commit the changes.
+5. Contribute the changes back to the main GitHub repository (using the 'Contribute' button in the GitHub console).  This will have the effect of creating a new pull request against the main GitHub repository.
+6. Monitor the 'checks' against the pull request to ensure that all of the automated test cases pass.
+7. Wait for the pull request to be merged.  This will usually happen overnight.
 
