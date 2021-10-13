@@ -498,15 +498,16 @@ func (mgr *SnapshotMgr) serve(w http.ResponseWriter, r *http.Request) {
              * then log the request.
              */
 
-            modified := r.URL.Query().Get("modified")
+            modified    := r.URL.Query().Get("modified")
+            modifiedStr := modified
 
             if len(modified) == 0 {
-                modified = "all"
+                modifiedStr = "all"
             }
 
             mgr.log.Info("Processing a POST",
                             "Path",     r.URL.Path,
-                            "Modified", modified,
+                            "Modified", modifiedStr,
                             "Client",   client)
 
             /*
