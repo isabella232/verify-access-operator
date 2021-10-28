@@ -340,8 +340,6 @@ func (r *IBMSecurityVerifyAccessReconciler) createSecret(
  * We will pre-propulate:
  *   - metadata
  *   - spec.selector
- *   - template.spec.securityContext.runAsUser
- *   - template.spec.securityContext.runAsNonRoot
  *   - template.spec.containers[0].name
  *   - template.spec.containers[0].ports
  *   - template.spec.containers[0].livenessProbe
@@ -388,21 +386,6 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
     }
 
     falseVar := false
-    trueVar  := true
-
-    /*
-     * The security context to be used.
-     */
-
-    isvaUser        := int64(6000)
-    securityContext := m.Spec.Container.SecurityContext
-
-    if securityContext == nil {
-        securityContext = &corev1.SecurityContext {
-            RunAsNonRoot: &trueVar,
-            RunAsUser:    &isvaUser,
-        }
-    }
 
     /*
      * The port which is exported by the deployment.
@@ -579,7 +562,7 @@ func (r *IBMSecurityVerifyAccessReconciler) deploymentForVerifyAccess(
                         Ports:           ports,
                         ReadinessProbe:  readinessProbe,
                         Resources:       m.Spec.Container.Resources,
-                        SecurityContext: securityContext,
+                        SecurityContext: m.Spec.Container.SecurityContext,
                         StartupProbe:    startupProbe,
                         VolumeDevices:   m.Spec.Container.VolumeDevices,
                         VolumeMounts:    m.Spec.Container.VolumeMounts,
