@@ -13,9 +13,6 @@ metadata:
     description: The IBM Security Verify Access Operator manages the lifecycle of IBM Security Verify Access worker containers.
     repository: https://github.com/IBM-Security/verify-access-operator
     support: IBM
-    # Prevent cluster upgrades to OpenShift Version 4.9 when this 
-    # bundle is installed on the cluster
-    "olm.properties": '[{"type": "olm.maxOpenShiftVersion", "value": "4.8"}]'
   name: ibm-security-verify-access-operator.v0000.0000.0000
   namespace: placeholder
 spec:
