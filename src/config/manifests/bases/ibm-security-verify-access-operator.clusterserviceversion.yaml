@@ -8,7 +8,7 @@ metadata:
     capabilities: Seamless Upgrades
     categories: Security
     certified: "false"
-    containerImage: ibmcom/verify-access-operator:0000.0000.0000
+    containerImage: docker.io/ibmcom/verify-access-operator:0000.0000.0000
     createdAt: --date--
     description: The IBM Security Verify Access Operator manages the lifecycle of IBM Security Verify Access worker containers.
     repository: https://github.com/IBM-Security/verify-access-operator
