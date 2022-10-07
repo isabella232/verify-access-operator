@@ -107,12 +107,12 @@ jobs:
 
           case $GITHUB_REF in 
             refs/tags/v*)
-              export IMAGE_TAG_BASE=ibmcom/verify-access-operator
+              export IMAGE_TAG_BASE=docker.io/ibmcom/verify-access-operator
               export VERSION=`echo $GITHUB_REF | sed "s|refs/tags/v||g"`
               export DO_PUSH=1
               ;;
             *)
-              export IMAGE_TAG_BASE=${ARTIFACTORY_SERVER}/verify-access-operator
+              export IMAGE_TAG_BASE=docker.io/${ARTIFACTORY_SERVER}/verify-access-operator
               export VERSION=0.0.0
 
               if [ $GITHUB_REF = "refs/heads/master" ] ; then
