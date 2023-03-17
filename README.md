@@ -21,13 +21,13 @@
 
 In a world of highly fragmented access management environments, [IBM Security Verify Access](https://www.ibm.com/au-en/products/verify-access) helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.
 
-For a detailed description of IBM Security Verify Access refer to the [Offical documentation](https://www.ibm.com/docs/en/sva).
+For a detailed description of IBM Security Verify Access refer to the [Official documentation](https://www.ibm.com/docs/en/sva).
 
 The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment, namely:
 
-* [Web Reverse Proxy](https://hub.docker.com/r/ibmcom/verify-access-wrp)
-* [Runtime](https://hub.docker.com/r/ibmcom/verify-access-runtime)
-* [Distributed Session Cache](https://hub.docker.com/r/ibmcom/verify-access-dsc)
+* [Web Reverse Proxy](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-web-reverse-proxy)
+* [Runtime](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-runtime)
+* [Distributed Session Cache](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-distributed-session-cache)
 
 The operator will manage the deployment of these lightweight IBM Security Verify Access worker containers, and also control the rolling restart of these containers when a configuration snapshot is updated, as depicted in the following figure.
 
@@ -73,7 +73,7 @@ To install the IBM Security Verify Access operator from OperatorHub.io:
 kubectl get csv -n operators
 
 NAME                              DISPLAY                               VERSION   REPLACES   PHASE
-verify-access-operator.v21.10.0   IBM Security Verify Access Operator   21.10.0              Succeeded
+verify-access-operator.v23.03.0   IBM Security Verify Access Operator   23.03.0              Succeeded
 ``` 
 
 At this point the Operator Lifecycle Manager has been installed into the Kubernetes cluster, the IBM Security Verify Access operator has been deployed and a subscription has been created that will monitor for any updates to the operator on OperatorHub.io. The IBM Security Verify Access operator is now operational and any subsequent custom resources of the kind "IBMSecurityVerifyAccess" will result in the operator being invoked to create the deployment.
@@ -92,7 +92,7 @@ To see a list of available releases refer to the releases page in GitHub: [https
 The following command can be used to deploy the operator directly from the definition published to GitHub:
 
 ```shell
-kubectl create -f https://github.com/IBM-Security/verify-access-operator/releases/download/v21.10.0/bundle.yaml
+kubectl create -f https://github.com/IBM-Security/verify-access-operator/releases/download/v23.03.0/bundle.yaml
 ```
 After executing this command the operator will be deployed to a newly created namespace: `verify-access-operator-system`.  The following command can be used to validate that the operator has been deployed correctly.  The available field should be set to "1". Note that this may take a few minutes.
 
@@ -148,7 +148,7 @@ The following sections describe the various methods which can be used to access 
 The GET method can be used to retrieve a specific snapshot.   An example curl command which can be used to retrieve a snapshot is as follows:
 
 ```shell
-curl -k -u $USER:$RO_PWD -O $URL/snapshots/isva_10.0.2.0_published.snapshot
+curl -k -u $USER:$RO_PWD -O $URL/snapshots/isva_10.0.5.0_published.snapshot
 ```
 
 #### POST
@@ -166,7 +166,7 @@ The service names used in the `modified` query string argument is as follows:
 An example curl command which can be used to upload a new snapshot is as follows:
 
 ```shell
-curl -k -u $USER:$RW_PWD -F 'file=@/var/shared/snapshots/isva_10.0.2.0_published.snapshot' $URL/snapshots/isva_10.0.2.0_published.snapshot?modified=wrp:default,runtime
+curl -k -u $USER:$RW_PWD -F 'file=@/var/shared/snapshots/isva_10.0.5.0_published.snapshot' $URL/snapshots/isva_10.0.5.0_published.snapshot?modified=wrp:default,runtime
 ```
 
 #### DELETE
@@ -174,7 +174,7 @@ curl -k -u $USER:$RW_PWD -F 'file=@/var/shared/snapshots/isva_10.0.2.0_published
 The DELETE method can be used to delete a specific snapshot.  An example curl command which can be used to delete a snapshot is as follows:
 
 ```shell
-curl -k -u $USER:$RW_PWD -X DELETE $URL/snapshots/isva_10.0.2.0_published.snapshot
+curl -k -u $USER:$RW_PWD -X DELETE $URL/snapshots/isva_10.0.5.0_published.snapshot
 ```
 
 ### Partitioning the Cluster
@@ -203,7 +203,7 @@ metadata:
 
 spec:
   # The name of the image which will be used in the deployment.
-  image: "ibmcom/verify-access-wrp:10.0.2.0"
+  image: "icr.io/isva/verify-access-wrp:10.0.5.0"
 
   # The number of pods which will be started for the deployment.
   replicas: 1
