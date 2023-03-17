@@ -21,7 +21,7 @@ VOLUME ["/build"]
 LABEL maintainer="isamdev@au.ibm.com" \
     vendor="IBM" \
     product="IBM Security Verify Access" \
-    documentation="https://www.ibm.com/docs/en/sva/10.0.2?topic=web-webseal-overview" \
+    documentation="https://www.ibm.com/docs/en/sva/latest?topic=web-webseal-overview" \
     product_information="https://www.ibm.com/au-en/products/verify-access" \
     copyright="Copyright contributors to the IBM Security Verify Access Operator project"
 

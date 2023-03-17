@@ -4,7 +4,7 @@ This document contains the release process which should be followed when generat
 
 ## Version Number
 
-The version number should be of the format: `v<year>.<month>.0`, for example: `v21.10.0`.
+The version number should be of the format: `v<year>.<month>.0`, for example: `v23.03.0`.
 
 
 # Generating a GitHub Release
@@ -15,8 +15,8 @@ The fields for the release should be:
 
 |Field|Description
 |-----|----------- 
-|Tag | The version number, e.g. `v21.10.0`
-|Release title | The version number, e.g. `v21.10.0`
+|Tag | The version number, e.g. `v23.03.0`
+|Release title | The version number, e.g. `v23.03.0`
 |Release description | The resources associated with the \<version\-number> IBM Security Verify Access operator release.
 
 After the release has been created the GitHub actions workflow ([https://github.com/IBM-Security/verify-access-operator/actions/workflows/build.yml](https://github.com/IBM-Security/verify-access-operator/actions/workflows/build.yml)) will be executed to generate the build.  This build process will include:
