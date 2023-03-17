@@ -9,7 +9,7 @@ metadata:
 
 spec:
   # The name of the image which will be used in the deployment.
-  image: "ibmcom/verify-access-wrp:10.0.2.0"
+  image: "icr.io/isva/verify-access-wrp:10.0.5.0"
 
   # The number of pods which will be started for the deployment.
   # replicas: 1

@@ -21,13 +21,13 @@
 
 In a world of highly fragmented access management environments, [IBM Security Verify Access](https://www.ibm.com/au-en/products/verify-access) helps you simplify your users' access while more securely adopting web, mobile and cloud technologies. This solution helps you strike a balance between usability and security through the use of risk-based access, single sign-on, integrated access management control, identity federation and its mobile multi-factor authentication capability, IBM Verify. Take back control of your access management with IBM Security Verify Access.
 
-For a detailed description of IBM Security Verify Access refer to the [Offical documentation](https://www.ibm.com/docs/en/sva).
+For a detailed description of IBM Security Verify Access refer to the [Official documentation](https://www.ibm.com/docs/en/sva).
 
 The IBM Security Verify Access operator provides lifecycle management of the lightweight containers which are used to protect an environment, namely:
 
-* [Web Reverse Proxy](https://hub.docker.com/r/ibmcom/verify-access-wrp)
-* [Runtime](https://hub.docker.com/r/ibmcom/verify-access-runtime)
-* [Distributed Session Cache](https://hub.docker.com/r/ibmcom/verify-access-dsc)
+* [Web Reverse Proxy](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-web-reverse-proxy)
+* [Runtime](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-runtime)
+* [Distributed Session Cache](https://www.ibm.com/docs/en/sva/latest?topic=support-docker-image-verify-access-distributed-session-cache)
 
 The operator will manage the deployment of these lightweight IBM Security Verify Access worker containers, and also control the rolling restart of these containers when a configuration snapshot is updated, as depicted in the following figure.
 
@@ -203,7 +203,7 @@ metadata:
 
 spec:
   # The name of the image which will be used in the deployment.
-  image: "ibmcom/verify-access-wrp:10.0.2.0"
+  image: "icr.io/isva/verify-access-wrp:10.0.5.0"
 
   # The number of pods which will be started for the deployment.
   replicas: 1
