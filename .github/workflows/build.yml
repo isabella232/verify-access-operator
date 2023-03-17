@@ -100,7 +100,7 @@ jobs:
               export DO_PUSH=1
               ;;
             *)
-              export VERSION=development
+              export VERSION=0.0.0
 
               if [ $GITHUB_REF = "refs/heads/master" ] ; then
                 export DO_PUSH=1
